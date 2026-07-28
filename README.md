@@ -1,4 +1,67 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sharenpan Next.js
+
+Fondasi storefront Sharenpan menggunakan Next.js App Router, TypeScript,
+Tailwind CSS, dan Supabase.
+
+## Menyalakan project
+
+```bash
+npm install
+copy .env.local.example .env.local
+npm run dev
+```
+
+Buka `http://localhost:3000`.
+
+## Menghubungkan Supabase
+
+1. Buka file `.env.local`.
+2. Isi `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` dengan publishable key/anon key
+   dari Supabase Dashboard → Project Settings → API.
+3. Buka Supabase Dashboard → SQL Editor.
+4. Jalankan seluruh isi `supabase/schema.sql`.
+5. Refresh aplikasi. Produk seed akan tampil di halaman utama.
+
+### Mengaktifkan foto produk
+
+Kolom `products.image_url` sudah tersedia. Untuk upload foto dari dashboard admin,
+jalankan seluruh isi `supabase/storage.sql` satu kali di Supabase SQL Editor.
+File tersebut membuat bucket `product-images` (public read, admin upload/update/delete)
+dengan batas 5 MB untuk PNG, JPG, dan WEBP.
+
+## Login customer dan admin
+
+- Customer wajib membuat akun atau login sebelum menambahkan produk ke keranjang.
+- Checkout akan menyimpan data ke tabel `orders` dan `order_items`.
+- Dashboard admin tersedia di `http://localhost:3000/admin`.
+- Setelah membuat akun admin melalui Supabase Authentication, jadikan akun tersebut admin melalui SQL Editor:
+
+```sql
+update public.profiles
+set role = 'admin'
+where id = (select id from auth.users where email = 'email-admin-kamu@example.com');
+```
+
+Jalankan tambahan policy produk berikut jika schema lama sudah pernah dijalankan:
+
+```sql
+drop policy if exists "Admins manage products" on public.products;
+create policy "Admins manage products" on public.products
+for all to authenticated using (public.is_admin()) with check (public.is_admin());
+```
+
+Project URL sudah disiapkan:
+`https://hyhmphdiisdgngwwkqfo.supabase.co`
+
+Jangan memasukkan `service_role key` atau database password ke frontend,
+chat, Git, atau file yang dibagikan.
+
+## Perintah verifikasi
+
+```bash
+npm run lint
+npm run build
+```
 
 ## Getting Started
 
