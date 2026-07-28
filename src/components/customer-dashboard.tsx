@@ -170,7 +170,7 @@ export default function CustomerDashboard({ initialData }: { initialData: Custom
     <div className="customer-shell">
       <header className="navbar">
         <Link className="brand" href="/">
-          <span className="brand-mark">S</span>
+          <img src="/assets/logo.png" alt="Sharenpan Logo" className="brand-logo-img" />
           <span>
             sharenpan
             <small>lapis legit premium</small>

@@ -116,7 +116,7 @@ export default function AdminDashboard({ initialData }: { initialData: AdminData
   const pageTitle = section === "overview" ? `Selamat datang, ${initialData.adminName}` : navItems.find((item) => item[0] === section)?.[1] || "Pengaturan";
   return <div className="admin-shell">
     <aside className="admin-sidebar">
-      <div className="admin-brand"><span className="brand-mark">S</span><span>sharenpan<small>admin workspace</small></span></div>
+      <div className="admin-brand"><img src="/assets/logo.png" alt="Sharenpan Logo" className="brand-logo-img" style={{ width: "32px", height: "32px" }} /><span>sharenpan<small>admin workspace</small></span></div>
       <p className="admin-nav-label">Main menu</p>
       <nav>{navItems.map(([key, label, icon]) => <button key={key} className={section === key ? "selected" : ""} onClick={() => goTo(key)}><span>{icon}</span>{label}{key === "orders" && pending > 0 && <b>{pending}</b>}</button>)}</nav>
       <p className="admin-nav-label">Lainnya</p>

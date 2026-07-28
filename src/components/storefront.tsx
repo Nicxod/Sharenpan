@@ -278,7 +278,7 @@ export default function Storefront({
 
       <header className="navbar">
         <a className="brand" href="#home" aria-label="Sharenpan home">
-          <span className="brand-mark">S</span>
+          <img src="/assets/logo.png" alt="Sharenpan Logo" className="brand-logo-img" />
           <span>
             sharenpan
             <small>lapis legit premium</small>
