@@ -63,6 +63,9 @@ export default function Storefront({
   const [checkoutError, setCheckoutError] = useState("");
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkout, setCheckout] = useState({ name: "", phone: "", address: "", city: "", notes: "" });
+  const [detailProduct, setDetailProduct] = useState<StorefrontProduct | null>(null);
+  const [detailSize, setDetailSize] = useState<"full" | "half">("full");
+  const [detailQty, setDetailQty] = useState(1);
 
   useEffect(() => {
     const supabase = createClient();
@@ -340,16 +343,18 @@ export default function Storefront({
           <div className="product-grid">
             {filteredProducts.map((product) => (
               <article className="product-card" key={product.id}>
-                <div className="product-image">
+                <div className="product-image" onClick={() => { setDetailProduct(product); setDetailSize("full"); setDetailQty(1); }} style={{ cursor: "pointer" }}>
                   <span className="product-tag">{product.tag}</span>
                   <img src={product.imageUrl} alt={product.name} />
                 </div>
                 <div className="product-info">
                   <div className="product-meta">
                     <span className="rating">★★★★★ <b>{product.rating}</b></span>
-                    <small>{product.reviews} review</small>
+                    <small>Resep Tradisional Fresh</small>
                   </div>
-                  <h3>{product.name}</h3>
+                  <h3 onClick={() => { setDetailProduct(product); setDetailSize("full"); setDetailQty(1); }} style={{ cursor: "pointer" }}>
+                    {product.name}
+                  </h3>
                   <p>{product.description}</p>
                   <div className="product-footer">
                     <div>
@@ -358,8 +363,8 @@ export default function Storefront({
                     </div>
                     <button
                       className="add-button"
-                      onClick={() => addToCart(product)}
-                      aria-label={`Tambah ${product.name}`}
+                      onClick={() => { setDetailProduct(product); setDetailSize("full"); setDetailQty(1); }}
+                      title="Lihat Detail & Pilih Ukuran"
                     >
                       +
                     </button>
@@ -632,6 +637,95 @@ export default function Storefront({
             showToast("Pembayaran berhasil dikonfirmasi! Pesanan Anda diproses.");
           }}
         />
+      )}
+
+      {/* PRODUCT DETAIL MODAL */}
+      {detailProduct && (
+        <div className="modal-backdrop" role="presentation" onClick={() => setDetailProduct(null)}>
+          <div className="product-detail-modal" role="dialog" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setDetailProduct(null)}>×</button>
+
+            <div className="detail-grid">
+              <div className="detail-image-box">
+                <span className="product-tag">{detailProduct.tag}</span>
+                <img src={detailProduct.imageUrl} alt={detailProduct.name} />
+              </div>
+
+              <div className="detail-info-box">
+                <p className="eyebrow">Resep Warisan Sejak 2014</p>
+                <h2>{detailProduct.name}</h2>
+                <p className="detail-description">{detailProduct.description}</p>
+
+                {/* Size Selector */}
+                <div className="size-selector-box">
+                  <span className="section-label">Pilih Ukuran Kue:</span>
+                  <div className="size-options">
+                    <button
+                      type="button"
+                      className={`size-btn ${detailSize === "full" ? "selected" : ""}`}
+                      onClick={() => setDetailSize("full")}
+                    >
+                      <strong>Full Size (20 × 20 cm)</strong>
+                      <small>Berat ~1.000g • {money(detailProduct.price)}</small>
+                    </button>
+                    <button
+                      type="button"
+                      className={`size-btn ${detailSize === "half" ? "selected" : ""}`}
+                      onClick={() => setDetailSize("half")}
+                    >
+                      <strong>Half Size (10 × 20 cm)</strong>
+                      <small>Berat ~500g • {money(Math.round(detailProduct.price * 0.55))}</small>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Premium Ingredients & Storage Advice */}
+                <div className="product-highlights">
+                  <div>
+                    <span>🧈 Komposisi Premium</span>
+                    <small>100% Butter Wijsman, Telur Segar Pilihan, Terigu Premium, Bebas Pengawet.</small>
+                  </div>
+                  <div>
+                    <span>📦 Masa Simpan & Penyimpanan</span>
+                    <small>3 - 5 hari di suhu ruang | Hingga 3 minggu dalam kulkas/chiller.</small>
+                  </div>
+                </div>
+
+                {/* Footer Action */}
+                <div className="detail-action-row">
+                  <div className="detail-price-tag">
+                    <span>Total:</span>
+                    <strong>{money((detailSize === "full" ? detailProduct.price : Math.round(detailProduct.price * 0.55)) * detailQty)}</strong>
+                  </div>
+
+                  <div className="detail-qty-control">
+                    <button onClick={() => setDetailQty(Math.max(1, detailQty - 1))}>−</button>
+                    <span>{detailQty}</span>
+                    <button onClick={() => setDetailQty(detailQty + 1)}>+</button>
+                  </div>
+
+                  <button
+                    className="primary-button"
+                    onClick={() => {
+                      const itemPrice = detailSize === "full" ? detailProduct.price : Math.round(detailProduct.price * 0.55);
+                      const sizeLabel = detailSize === "full" ? "20x20 cm" : "10x20 cm";
+                      for (let i = 0; i < detailQty; i++) {
+                        addToCart({
+                          ...detailProduct,
+                          price: itemPrice,
+                          name: `${detailProduct.name} (${sizeLabel})`,
+                        });
+                      }
+                      setDetailProduct(null);
+                    }}
+                  >
+                    + Tambah Keranjang <span>→</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

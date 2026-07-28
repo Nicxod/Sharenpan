@@ -7,16 +7,18 @@ type Product = { id: string; name: string; slug: string; price: number; stock: n
 type Order = { id: string; order_number: string; customer_name: string; customer_email: string | null; customer_phone: string; total: number; status: string; payment_status: string; created_at: string };
 type OrderItem = { product_id: string | null; product_name: string; quantity: number; subtotal: number };
 type Customer = { id: string; full_name: string | null; phone: string | null; role: string; created_at: string };
-export type AdminData = { adminName: string; products: Product[]; orders: Order[]; orderItems: OrderItem[]; customers: Customer[] };
+type FeedbackItem = { id: string; order_id: string | null; customer_name: string; customer_email: string | null; rating_score: number; message: string; created_at: string };
+export type AdminData = { adminName: string; products: Product[]; orders: Order[]; orderItems: OrderItem[]; customers: Customer[]; feedbacks?: FeedbackItem[] };
 
-type Section = "overview" | "orders" | "products" | "customers" | "reports" | "settings";
+type Section = "overview" | "orders" | "products" | "customers" | "feedback" | "reports" | "settings";
 type OrderChanges = { status?: string; payment_status?: string };
 
 const money = (value: number) => `Rp${value.toLocaleString("id-ID")}`;
 const date = (value: string) => new Date(value).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
 const statusLabels: Record<string, string> = { pending: "Menunggu", confirmed: "Dikonfirmasi", processing: "Diproses", shipped: "Dikirim", completed: "Selesai", cancelled: "Dibatalkan" };
 const paymentLabels: Record<string, string> = { unpaid: "Belum dibayar", pending: "Menunggu", paid: "Dibayar", failed: "Gagal", refunded: "Dikembalikan" };
-const navItems: Array<[Section, string, string]> = [["overview", "Overview", "▦"], ["orders", "Pesanan", "▤"], ["products", "Produk", "◫"], ["customers", "Pelanggan", "♙"], ["reports", "Laporan", "◌"]];
+const navItems: Array<[Section, string, string]> = [["overview", "Overview", "▦"], ["orders", "Pesanan", "▤"], ["products", "Produk", "◫"], ["customers", "Pelanggan", "♙"], ["feedback", "Feedback", "💬"], ["reports", "Laporan", "◌"]];
+
 
 export default function AdminDashboard({ initialData }: { initialData: AdminData }) {
   const [data, setData] = useState(initialData);
@@ -129,6 +131,34 @@ export default function AdminDashboard({ initialData }: { initialData: AdminData
       {section === "orders" && <section className="admin-panel full-panel"><div className="panel-heading"><div><h2>Pesanan</h2><p>Kelola status pengiriman dan pembayaran customer</p></div><select className="filter-select" value={orderFilter} onChange={(event) => setOrderFilter(event.target.value)}><option value="all">Semua status</option>{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div><OrderTable orders={filteredOrders} onUpdate={updateOrder} /></section>}
       {section === "products" && <ProductsSection products={data.products} productForm={productForm} setProductForm={setProductForm} imagePreview={imagePreview} setImagePreview={setImagePreview} showProductForm={showProductForm} setShowProductForm={setShowProductForm} onAdd={addProduct} onUpdate={updateProduct} onDelete={deleteProduct} />}
       {section === "customers" && <section className="admin-panel full-panel"><div className="panel-heading"><div><h2>Pelanggan</h2><p>{filteredCustomers.length} customer terdaftar di Sharenpan</p></div><input className="panel-search" value={customerSearch} onChange={(event) => setCustomerSearch(event.target.value)} placeholder="Cari nama atau telepon" /></div><div className="customer-grid">{filteredCustomers.map((customer) => <div className="customer-card" key={customer.id}><span>{(customer.full_name || "C").slice(0, 1).toUpperCase()}</span><div><strong>{customer.full_name || "Customer"}</strong><small>{customer.phone || "Nomor belum diisi"}</small><small>Bergabung {date(customer.created_at)}</small></div></div>)}{filteredCustomers.length === 0 && <div className="empty-table">Belum ada customer yang cocok.</div>}</div></section>}
+      {section === "feedback" && (
+        <section className="admin-panel full-panel">
+          <div className="panel-heading">
+            <div>
+              <h2>Feedback & Masukan Pelanggan (Privat)</h2>
+              <p>Hanya dapat dibaca oleh Admin untuk meningkatkan mutu pelayanan & rasa kue</p>
+            </div>
+          </div>
+          <div className="customer-grid">
+            {(data.feedbacks && data.feedbacks.length > 0) ? (
+              data.feedbacks.map((fb) => (
+                <div className="customer-card" key={fb.id} style={{ flexDirection: "column", alignItems: "flex-start", gap: "8px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", width: "100%", alignItems: "center" }}>
+                    <strong style={{ fontSize: "14px", fontFamily: "Georgia, serif" }}>{fb.customer_name}</strong>
+                    <span style={{ color: "#bd7f35", fontSize: "12px" }}>{"★".repeat(fb.rating_score)}</span>
+                  </div>
+                  <small style={{ color: "#928072" }}>{fb.customer_email || "Email tidak terdaftar"} • {date(fb.created_at)}</small>
+                  <p style={{ margin: "6px 0 0", fontSize: "13px", color: "#33251d", background: "#fcf9f5", padding: "10px", borderRadius: "8px", width: "100%", border: "1px solid #efe4d7" }}>
+                    "{fb.message}"
+                  </p>
+                </div>
+              ))
+            ) : (
+              <div className="empty-table" style={{ gridColumn: "1 / -1" }}>Belum ada feedback dari pelanggan saat ini.</div>
+            )}
+          </div>
+        </section>
+      )}
       {section === "reports" && <ReportsSection orders={data.orders} chartData={chartData} chartPoints={chartPoints} chartMax={chartMax} reportRange={reportRange} setReportRange={setReportRange} revenue={revenue} onUpdateOrder={updateOrder} />}
       {section === "settings" && <section className="admin-panel full-panel"><div className="panel-heading"><div><h2>Pengaturan</h2><p>Informasi akses dan operasional toko</p></div></div><div className="settings-list"><div><strong>Role akun</strong><span>Administrator — akses penuh dashboard</span></div><div><strong>Database</strong><span>Supabase dengan Row Level Security aktif</span></div><div><strong>Alur order</strong><span>Customer login sebelum checkout · Admin mengelola status pesanan</span></div><div><strong>Status pembayaran</strong><span>Update manual tersedia sampai payment gateway dihubungkan</span></div></div></section>}
     </main>

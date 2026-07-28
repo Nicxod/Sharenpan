@@ -117,6 +117,11 @@ export default function CustomerDashboard({ initialData }: { initialData: Custom
   const [activeTab, setActiveTab] = useState<TabType>("overview");
   const [selectedOrderForPay, setSelectedOrderForPay] = useState<CustomerOrder | null>(null);
   const [selectedOrderForDetail, setSelectedOrderForDetail] = useState<CustomerOrder | null>(null);
+  const [selectedOrderForFeedback, setSelectedOrderForFeedback] = useState<CustomerOrder | null>(null);
+  const [feedbackRating, setFeedbackRating] = useState(5);
+  const [feedbackMessage, setFeedbackMessage] = useState("");
+  const [feedbackSuccess, setFeedbackSuccess] = useState("");
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   async function signOut() {
@@ -341,6 +346,11 @@ export default function CustomerDashboard({ initialData }: { initialData: Custom
                         <button className="btn-detail-order" onClick={() => setSelectedOrderForDetail(order)}>
                           Lacak
                         </button>
+                        {order.status === "completed" && (
+                          <button className="btn-detail-order" style={{ borderColor: "#b47c42", color: "#6f4932" }} onClick={() => setSelectedOrderForFeedback(order)}>
+                            💬 Feedback
+                          </button>
+                        )}
                         {order.payment_status === "unpaid" && (
                           <button className="btn-pay-now" onClick={() => setSelectedOrderForPay(order)}>
                             Bayar
@@ -468,6 +478,98 @@ export default function CustomerDashboard({ initialData }: { initialData: Custom
           onClose={() => setSelectedOrderForPay(null)}
           onSuccess={handlePaymentSuccess}
         />
+      )}
+
+      {/* PRIVATE FEEDBACK MODAL */}
+      {selectedOrderForFeedback && (
+        <div className="modal-backdrop" role="presentation" onClick={() => setSelectedOrderForFeedback(null)}>
+          <div className="order-detail-modal" role="dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "480px" }}>
+            <button className="modal-close" onClick={() => setSelectedOrderForFeedback(null)}>×</button>
+            <p className="eyebrow">Peningkatan Layanan</p>
+            <h2 style={{ fontFamily: "Georgia, serif", fontSize: "24px", margin: "6px 0 10px" }}>
+              Masukan Privat Pelanggan
+            </h2>
+            <p style={{ fontSize: "12px", color: "var(--muted)", margin: "0 0 18px" }}>
+              Masukan Anda untuk Order <strong>#{selectedOrderForFeedback.order_number}</strong> dikirim secara privat langsung ke manajemen Admin Sharenpan.
+            </p>
+
+            {feedbackSuccess ? (
+              <div className="success-message" style={{ textAlign: "center", padding: "18px" }}>
+                {feedbackSuccess}
+              </div>
+            ) : (
+              <form
+                className="stack-form"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!feedbackMessage.trim()) return;
+                  setFeedbackLoading(true);
+                  try {
+                    const supabase = createClient();
+                    const { data: { user } } = await supabase.auth.getUser();
+                    await supabase.from("customer_feedback").insert({
+                      order_id: selectedOrderForFeedback.id,
+                      user_id: user?.id || null,
+                      customer_name: data.name,
+                      customer_email: data.email,
+                      rating_score: feedbackRating,
+                      message: feedbackMessage.trim(),
+                    });
+                    setFeedbackSuccess("Terima kasih! Masukan Anda telah terkirim secara privat ke Admin Sharenpan.");
+                    setTimeout(() => {
+                      setFeedbackSuccess("");
+                      setSelectedOrderForFeedback(null);
+                      setFeedbackMessage("");
+                    }, 2200);
+                  } catch {
+                    //
+                  } finally {
+                    setFeedbackLoading(false);
+                  }
+                }}
+              >
+                <label>
+                  Tingkat Kepuasan (Internal)
+                  <div style={{ display: "flex", gap: "8px", margin: "6px 0" }}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setFeedbackRating(star)}
+                        style={{
+                          border: "1px solid #e2d5c5",
+                          borderRadius: "8px",
+                          background: feedbackRating >= star ? "#fffbf2" : "#ffffff",
+                          color: feedbackRating >= star ? "#bd7f35" : "#ccc",
+                          fontSize: "20px",
+                          padding: "6px 12px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        ★
+                      </button>
+                    ))}
+                  </div>
+                </label>
+
+                <label>
+                  Kritik, Saran, Rasa Kue & Pengiriman
+                  <textarea
+                    rows={4}
+                    value={feedbackMessage}
+                    onChange={(e) => setFeedbackMessage(e.target.value)}
+                    required
+                    placeholder="Tuliskan pendapat Anda mengenai rasa kue lapis legit, kerapian kemasan, atau pelayanan kami..."
+                  />
+                </label>
+
+                <button className="primary-button full-button" disabled={feedbackLoading}>
+                  {feedbackLoading ? "Mengirim..." : "Kirim Masukan Privat ke Admin"} <span>→</span>
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

@@ -335,11 +335,26 @@ values
   ('Lapis Legit Cheese', 'lapis-legit-cheese', 'Perpaduan lapisan legit dan keju yang gurih.', 315000, 10, 500, 'active')
 on conflict (slug) do nothing;
 
-insert into public.site_settings (key, value)
-values
-  ('store_info', '{"name":"Sharenpan","tagline":"Rasa legit turun-temurun","phone":"+62 812 0000 0000"}'::jsonb),
-  ('shipping_info', '{"couriers":["JNE","SiCepat","GoSend"],"free_shipping_minimum":500000}'::jsonb),
-  ('social_links', '{"instagram":"@sharenpan","tiktok":"@sharenpan"}'::jsonb)
-on conflict (key) do nothing;
+create table if not exists public.customer_feedback (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid references public.orders(id) on delete set null,
+  user_id uuid references auth.users(id) on delete cascade,
+  customer_name text not null,
+  customer_email text,
+  rating_score integer check (rating_score between 1 and 5),
+  message text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table public.customer_feedback enable row level security;
+
+drop policy if exists "Customers create own feedback" on public.customer_feedback;
+create policy "Customers create own feedback" on public.customer_feedback
+for insert to anon, authenticated with check (user_id is null or user_id = auth.uid());
+
+drop policy if exists "Admins read all feedback" on public.customer_feedback;
+create policy "Admins read all feedback" on public.customer_feedback
+for select to authenticated using (public.is_admin() or user_id = auth.uid());
 
 commit;
+
