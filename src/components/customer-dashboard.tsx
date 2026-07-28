@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import PaymentGatewayModal from "@/components/payment-gateway-modal";
@@ -124,6 +124,16 @@ export default function CustomerDashboard({ initialData }: { initialData: Custom
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get("tab");
+      if (tabParam === "profile" || tabParam === "orders" || tabParam === "overview") {
+        setActiveTab(tabParam as TabType);
+      }
+    }
+  }, []);
+
   async function signOut() {
     await createClient().auth.signOut();
     window.location.href = "/";
@@ -158,7 +168,7 @@ export default function CustomerDashboard({ initialData }: { initialData: Custom
 
   return (
     <div className="customer-shell">
-      <header className="customer-header">
+      <header className="navbar">
         <Link className="brand" href="/">
           <span className="brand-mark">S</span>
           <span>
@@ -166,9 +176,31 @@ export default function CustomerDashboard({ initialData }: { initialData: Custom
             <small>lapis legit premium</small>
           </span>
         </Link>
-        <div className="customer-actions">
-          <Link href="/">🏠 Kembali ke toko</Link>
-          <button onClick={signOut}>Keluar</button>
+        <nav className="desktop-nav" aria-label="Navigasi utama">
+          <Link href="/">Home</Link>
+          <Link href="/#produk">Produk</Link>
+          <Link href="/#cerita">Tentang kami</Link>
+          <Link href="/#cara-order">Cara order</Link>
+          <button
+            className="nav-pesanan-highlight active-nav"
+            onClick={() => setActiveTab("overview")}
+          >
+            📦 Pesanan
+          </button>
+        </nav>
+        <div className="nav-actions">
+          <button
+            className={`account-button ${activeTab === "profile" ? "active-profile" : ""}`}
+            onClick={() => setActiveTab("profile")}
+          >
+            👤 Profil Saya
+          </button>
+          <Link href="/" className="cart-button" title="Kembali ke toko">
+            Ke Toko 🛍️
+          </Link>
+          <button className="logout-button" onClick={signOut}>
+            Keluar
+          </button>
         </div>
       </header>
 

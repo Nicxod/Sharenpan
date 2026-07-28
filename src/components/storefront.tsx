@@ -225,23 +225,41 @@ export default function Storefront({
           <a href="#produk">Produk</a>
           <a href="#cerita">Tentang kami</a>
           <a href="#cara-order">Cara order</a>
+          {user && (
+            <a href="/customer" className="nav-pesanan-highlight">
+              📦 Pesanan
+            </a>
+          )}
         </nav>
         <div className="nav-actions">
           {user ? (
             <>
-              <a className="account-button" href="/customer">
-                📦 Akun & Pesanan
+              <a className="account-button" href="/customer?tab=profile">
+                👤 Profil Saya
               </a>
-              <button className="account-button" onClick={async () => { await createClient().auth.signOut(); setUser(null); }}>
+              <button className="cart-button" onClick={() => setCartOpen(true)}>
+                Keranjang <b>{cartCount}</b>
+              </button>
+              <button
+                className="logout-button"
+                onClick={async () => {
+                  await createClient().auth.signOut();
+                  setUser(null);
+                }}
+              >
                 Keluar
               </button>
             </>
           ) : (
-            <button className="account-button" onClick={() => setAuthOpen(true)}>Masuk / Daftar</button>
+            <>
+              <button className="account-button" onClick={() => setAuthOpen(true)}>
+                Masuk / Daftar
+              </button>
+              <button className="cart-button" onClick={() => setCartOpen(true)}>
+                Keranjang <b>{cartCount}</b>
+              </button>
+            </>
           )}
-          <button className="cart-button" onClick={() => setCartOpen(true)}>
-            Keranjang <b>{cartCount}</b>
-          </button>
         </div>
       </header>
 
