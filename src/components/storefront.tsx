@@ -117,6 +117,39 @@ export default function Storefront({
   }
 
   const [paymentGatewayOrder, setPaymentGatewayOrder] = useState<{ id: string; number: string; total: number } | null>(null);
+  const [shippingOptions, setShippingOptions] = useState<Array<{ id: string; courierName: string; serviceName: string; description: string; cost: number; etd: string; isFree?: boolean }>>([]);
+  const [selectedShipping, setSelectedShipping] = useState<{ id: string; courierName: string; serviceName: string; description: string; cost: number; etd: string; isFree?: boolean } | null>(null);
+  const [shippingLoading, setShippingLoading] = useState(false);
+
+  const cartWeight = cart.reduce((total, item) => total + item.quantity * 500, 0);
+
+  async function calculateShipping(cityName: string) {
+    if (!cityName.trim() || cityName.length < 3) return;
+    setShippingLoading(true);
+    try {
+      const res = await fetch("/api/shipping/cost", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          destinationCity: cityName,
+          weightGram: cartWeight || 500,
+          subtotal: cartTotal,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.options && data.options.length > 0) {
+        setShippingOptions(data.options);
+        setSelectedShipping(data.options[0]);
+      }
+    } catch {
+      // Fallback default
+    } finally {
+      setShippingLoading(false);
+    }
+  }
+
+  const currentShippingCost = selectedShipping ? selectedShipping.cost : 0;
+  const finalTotal = cartTotal + currentShippingCost;
 
   async function submitCheckout(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -129,10 +162,16 @@ export default function Storefront({
       customer_name: checkout.name,
       customer_email: user.email,
       customer_phone: checkout.phone,
-      shipping_address: { address_line: checkout.address, city: checkout.city },
+      shipping_address: {
+        address_line: checkout.address,
+        city: checkout.city,
+        courier: selectedShipping ? selectedShipping.serviceName : "Pengiriman Standar",
+        etd: selectedShipping ? selectedShipping.etd : "1-2 Hari",
+      },
       notes: checkout.notes || null,
       subtotal: cartTotal,
-      total: cartTotal,
+      shipping_fee: currentShippingCost,
+      total: finalTotal,
     }).select("id, order_number").single();
     if (error || !order) {
       setCheckoutError(error?.message || "Pesanan belum dapat dibuat.");
@@ -142,7 +181,7 @@ export default function Storefront({
       else {
         setCart([]);
         setCheckoutOpen(false);
-        setPaymentGatewayOrder({ id: order.id, number: order.order_number, total: cartTotal });
+        setPaymentGatewayOrder({ id: order.id, number: order.order_number, total: finalTotal });
         showToast(`Pesanan #${order.order_number} berhasil dibuat! Pilih pembayaran Anda.`);
       }
     }
@@ -459,7 +498,129 @@ export default function Storefront({
       )}
       {toast && <div className="toast">{toast}</div>}
       {authOpen && <AuthModal onClose={() => setAuthOpen(false)} onSuccess={() => showToast("Berhasil masuk. Silakan lanjutkan pesanan.")} />}
-      {checkoutOpen && <div className="modal-backdrop" role="presentation" onMouseDown={() => setCheckoutOpen(false)}><section className="checkout-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => setCheckoutOpen(false)} aria-label="Tutup">×</button><p className="eyebrow">Langkah terakhir</p><h2>Lengkapi pesananmu.</h2><p className="modal-description">Pesanan akan dicatat ke akunmu dan diproses oleh tim Sharenpan.</p><form className="stack-form" onSubmit={submitCheckout}><label>Nama penerima<input value={checkout.name} onChange={(event) => setCheckout({ ...checkout, name: event.target.value })} required /></label><label>Nomor WhatsApp<input value={checkout.phone} onChange={(event) => setCheckout({ ...checkout, phone: event.target.value })} required /></label><label>Alamat lengkap<textarea value={checkout.address} onChange={(event) => setCheckout({ ...checkout, address: event.target.value })} required rows={3} /></label><label>Kota<input value={checkout.city} onChange={(event) => setCheckout({ ...checkout, city: event.target.value })} required /></label><label>Catatan (opsional)<textarea value={checkout.notes} onChange={(event) => setCheckout({ ...checkout, notes: event.target.value })} rows={2} /></label>{checkoutError && <p className="form-message">{checkoutError}</p>}<div className="checkout-total"><span>Total pesanan</span><strong>{money(cartTotal)}</strong></div><button className="primary-button full-button" disabled={checkoutLoading}>{checkoutLoading ? "Mencatat pesanan..." : "Konfirmasi pesanan"}<span>→</span></button></form></section></div>}
+      {checkoutOpen && (
+        <div className="modal-backdrop" role="presentation" onMouseDown={() => setCheckoutOpen(false)}>
+          <section className="checkout-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
+            <button className="modal-close" onClick={() => setCheckoutOpen(false)} aria-label="Tutup">×</button>
+            <p className="eyebrow">Langkah Terakhir</p>
+            <h2>Lengkapi Pesananmu</h2>
+            <p className="modal-description">Isi alamat pengiriman untuk menghitung ongkir & memilih kurir.</p>
+
+            <form className="stack-form" onSubmit={submitCheckout}>
+              <label>
+                Nama Penerima
+                <input value={checkout.name} onChange={(event) => setCheckout({ ...checkout, name: event.target.value })} required placeholder="Nama lengkap Anda" />
+              </label>
+
+              <label>
+                Nomor WhatsApp
+                <input value={checkout.phone} onChange={(event) => setCheckout({ ...checkout, phone: event.target.value })} required placeholder="0812xxxxxxxx" />
+              </label>
+
+              <label>
+                Alamat Lengkap
+                <textarea value={checkout.address} onChange={(event) => setCheckout({ ...checkout, address: event.target.value })} required rows={2} placeholder="Jalan, No. Rumah, RT/RW, Kelurahan, Kecamatan" />
+              </label>
+
+              <label>
+                Kota / Kabupaten Tujuan
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <input
+                    value={checkout.city}
+                    onChange={(event) => {
+                      const val = event.target.value;
+                      setCheckout({ ...checkout, city: val });
+                      if (val.length >= 3) calculateShipping(val);
+                    }}
+                    onBlur={() => calculateShipping(checkout.city)}
+                    required
+                    placeholder="Contoh: Bandung, Jakarta Selatan, Surabaya"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => calculateShipping(checkout.city)}
+                    className="secondary-button"
+                    style={{ minHeight: "auto", padding: "0 14px", fontSize: "11px", whiteSpace: "nowrap" }}
+                  >
+                    {shippingLoading ? "Menghitung..." : "Cek Ongkir 🚚"}
+                  </button>
+                </div>
+              </label>
+
+              {/* Shipping Options Selector */}
+              {shippingOptions.length > 0 && (
+                <div style={{ background: "#fbf6f0", padding: "14px", borderRadius: "12px", border: "1px solid #e8decb", margin: "6px 0" }}>
+                  <span style={{ fontSize: "11px", fontWeight: "800", color: "#6f4932", display: "block", marginBottom: "8px" }}>
+                    🚚 Pilih Kurir Pengiriman ({Math.max(1, Math.ceil(cartWeight / 1000))} kg):
+                  </span>
+                  <div style={{ display: "grid", gap: "8px" }}>
+                    {shippingOptions.map((opt) => (
+                      <label
+                        key={opt.id}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: "10px 12px",
+                          borderRadius: "8px",
+                          border: selectedShipping?.id === opt.id ? "2px solid #6f4932" : "1px solid #e2d5c5",
+                          background: selectedShipping?.id === opt.id ? "#fffbf5" : "#ffffff",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <input
+                            type="radio"
+                            name="shipping_courier"
+                            checked={selectedShipping?.id === opt.id}
+                            onChange={() => setSelectedShipping(opt)}
+                          />
+                          <div>
+                            <strong style={{ fontSize: "12px", display: "block" }}>{opt.serviceName}</strong>
+                            <small style={{ fontSize: "9px", color: "#8c7868" }}>{opt.description} ({opt.etd})</small>
+                          </div>
+                        </div>
+                        <strong style={{ color: "#6f4932", fontSize: "12px" }}>
+                          {opt.isFree ? "GRATIS" : money(opt.cost)}
+                        </strong>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <label>
+                Catatan Pesanan (opsional)
+                <textarea value={checkout.notes} onChange={(event) => setCheckout({ ...checkout, notes: event.target.value })} rows={2} placeholder="Contoh: Tolong bungkus pita ucapan ulang tahun" />
+              </label>
+
+              {checkoutError && <p className="form-message">{checkoutError}</p>}
+
+              {/* Rincian Tagihan Checkout */}
+              <div className="checkout-total" style={{ flexDirection: "column", alignItems: "stretch", gap: "6px", borderTop: "1px solid var(--line)", paddingTop: "14px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
+                  <span>Subtotal Kue</span>
+                  <strong>{money(cartTotal)}</strong>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
+                  <span>Ongkos Kirim ({selectedShipping ? selectedShipping.courierName : "Belum dipilih"})</span>
+                  <strong style={{ color: selectedShipping?.isFree ? "#278044" : "inherit" }}>
+                    {selectedShipping ? (selectedShipping.isFree ? "GRATIS" : money(selectedShipping.cost)) : "Rp0"}
+                  </strong>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px dashed var(--line)", paddingTop: "8px", marginTop: "4px" }}>
+                  <span style={{ fontWeight: "700" }}>Total Tagihan Final</span>
+                  <strong style={{ fontSize: "24px", color: "#6f4932" }}>{money(finalTotal)}</strong>
+                </div>
+              </div>
+
+              <button className="primary-button full-button" disabled={checkoutLoading}>
+                {checkoutLoading ? "Mencatat pesanan..." : `Lanjut Pembayaran (${money(finalTotal)})`} <span>→</span>
+              </button>
+            </form>
+          </section>
+        </div>
+      )}
       {paymentGatewayOrder && (
         <PaymentGatewayModal
           orderId={paymentGatewayOrder.id}
