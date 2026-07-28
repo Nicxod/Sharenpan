@@ -215,25 +215,6 @@ export default function CustomerDashboard({ initialData }: { initialData: Custom
           <span className="customer-avatar">{data.name.slice(0, 1).toUpperCase()}</span>
         </div>
 
-        {/* Quick Summary Cards */}
-        <div className="customer-summary">
-          <div>
-            <span>Total Pesanan</span>
-            <strong>{data.orders.length}</strong>
-            <small>Riwayat Transaksi</small>
-          </div>
-          <div>
-            <span>Pesanan Sedang Diproses</span>
-            <strong>{activeOrders.length}</strong>
-            <small>Dipanggang & Dikirim</small>
-          </div>
-          <div>
-            <span>Total Belanja</span>
-            <strong>{money(data.orders.reduce((total, order) => total + order.total, 0))}</strong>
-            <small>Akumulasi Pembelian</small>
-          </div>
-        </div>
-
         {/* Tab Switcher Navigation */}
         <nav className="customer-nav-tabs" aria-label="Menu Customer">
           <button

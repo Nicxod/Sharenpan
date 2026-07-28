@@ -67,6 +67,16 @@ export default function Storefront({
   const [detailSize, setDetailSize] = useState<"full" | "half">("full");
   const [detailQty, setDetailQty] = useState(1);
 
+  const [promoInput, setPromoInput] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState<{
+    code: string;
+    type: "percent" | "fixed";
+    value: number;
+    label: string;
+  } | null>(null);
+  const [promoMessage, setPromoMessage] = useState("");
+  const [promoError, setPromoError] = useState("");
+
   useEffect(() => {
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => {
@@ -152,7 +162,61 @@ export default function Storefront({
   }
 
   const currentShippingCost = selectedShipping ? selectedShipping.cost : 0;
-  const finalTotal = cartTotal + currentShippingCost;
+
+  const discountAmount = useMemo(() => {
+    if (!appliedPromo || cartTotal <= 0) return 0;
+    if (appliedPromo.type === "percent") {
+      return Math.round((cartTotal * appliedPromo.value) / 100);
+    }
+    return Math.min(cartTotal, appliedPromo.value);
+  }, [appliedPromo, cartTotal]);
+
+  const finalTotal = Math.max(0, cartTotal - discountAmount + currentShippingCost);
+
+  async function handleApplyPromo(codeToApply?: string) {
+    const code = (codeToApply || promoInput).trim().toUpperCase();
+    if (!code) return;
+    setPromoError("");
+    setPromoMessage("");
+
+    const localPromos: Record<string, { type: "percent" | "fixed"; value: number; label: string; minCart?: number }> = {
+      WELCOME10: { type: "percent", value: 10, label: "Diskon 10% Spesial Pelanggan Baru" },
+      SHARENPAN50K: { type: "fixed", value: 50000, label: "Potongan Rp50.000 (Min. Belanja Rp200.000)", minCart: 200000 },
+      LEZAT20K: { type: "fixed", value: 20000, label: "Potongan Langsung Rp20.000" },
+    };
+
+    if (localPromos[code]) {
+      const p = localPromos[code];
+      if (p.minCart && cartTotal < p.minCart) {
+        setPromoError(`Voucher ${code} memerlukan minimal belanja ${money(p.minCart)}.`);
+        return;
+      }
+      setAppliedPromo({ code, type: p.type, value: p.value, label: p.label });
+      setPromoMessage(`Voucher "${code}" berhasil dipasang!`);
+      setPromoInput("");
+      return;
+    }
+
+    try {
+      const supabase = createClient();
+      const { data } = await supabase.from("promo_codes").select("*").eq("code", code).eq("is_active", true).single();
+      if (data) {
+        setAppliedPromo({
+          code: data.code,
+          type: data.discount_type === "percentage" ? "percent" : "fixed",
+          value: data.discount_value,
+          label: `Diskon ${data.discount_type === "percentage" ? `${data.discount_value}%` : money(data.discount_value)}`,
+        });
+        setPromoMessage(`Voucher "${data.code}" berhasil dipasang!`);
+        setPromoInput("");
+        return;
+      }
+    } catch {
+      //
+    }
+
+    setPromoError(`Kode voucher "${code}" tidak valid. Coba: WELCOME10 atau SHARENPAN50K`);
+  }
 
   async function submitCheckout(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -500,12 +564,64 @@ export default function Storefront({
           )}
         </div>
         <div className="cart-footer">
-          <div>
-            <span>Subtotal</span>
-            <strong>{money(cartTotal)}</strong>
+          {/* Voucher Section */}
+          <div className="voucher-cart-box" style={{ background: "#fbf6f0", padding: "10px", borderRadius: "10px", border: "1px solid #e8decb", marginBottom: "12px" }}>
+            <span style={{ fontSize: "11px", fontWeight: "800", color: "#6f4932", display: "block", marginBottom: "6px" }}>
+              🎟️ Punya Kode Voucher / Promo?
+            </span>
+            {appliedPromo ? (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#fdf3e5", padding: "6px 10px", borderRadius: "8px", border: "1px solid #e5cdb2" }}>
+                <div>
+                  <strong style={{ fontSize: "12px", color: "#6f4932" }}>{appliedPromo.code}</strong>
+                  <small style={{ display: "block", fontSize: "10px", color: "#8c6d56" }}>{appliedPromo.label}</small>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setAppliedPromo(null); setPromoMessage(""); setPromoError(""); }}
+                  style={{ border: 0, background: "transparent", color: "#a05448", fontSize: "11px", fontWeight: "700", cursor: "pointer" }}
+                >
+                  Hapus
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: "flex", gap: "6px" }}>
+                <input
+                  type="text"
+                  value={promoInput}
+                  onChange={(e) => setPromoInput(e.target.value)}
+                  placeholder="Kode: WELCOME10"
+                  style={{ flex: 1, padding: "6px 10px", borderRadius: "6px", border: "1px solid #d8c8b8", fontSize: "12px", textTransform: "uppercase" }}
+                />
+                <button
+                  type="button"
+                  onClick={() => handleApplyPromo()}
+                  style={{ padding: "6px 12px", borderRadius: "6px", background: "#6f4932", color: "#fff", border: 0, fontSize: "11px", fontWeight: "700", cursor: "pointer" }}
+                >
+                  Gunakan
+                </button>
+              </div>
+            )}
+            {promoMessage && <small style={{ color: "#2d7a42", fontSize: "10px", display: "block", marginTop: "4px" }}>{promoMessage}</small>}
+            {promoError && <small style={{ color: "#a05448", fontSize: "10px", display: "block", marginTop: "4px" }}>{promoError}</small>}
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+            <span style={{ fontSize: "12px", color: "var(--muted)" }}>Subtotal Produk</span>
+            <span style={{ fontSize: "13px" }}>{money(cartTotal)}</span>
+          </div>
+          {discountAmount > 0 && (
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px", color: "#2d7a42" }}>
+              <span style={{ fontSize: "12px" }}>Diskon Voucher ({appliedPromo?.code})</span>
+              <span style={{ fontSize: "13px", fontWeight: "700" }}>−{money(discountAmount)}</span>
+            </div>
+          )}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid var(--line)", paddingTop: "8px", marginTop: "4px" }}>
+            <span>Total Belanja</span>
+            <strong style={{ fontSize: "18px", color: "var(--brown)" }}>{money(Math.max(0, cartTotal - discountAmount))}</strong>
           </div>
           <button
             className="primary-button full-button"
+            style={{ marginTop: "12px" }}
             onClick={() => cart.length ? (user ? setCheckoutOpen(true) : setAuthOpen(true)) : showToast("Tambahkan produk terlebih dahulu")}
           >
             Lanjut checkout <span>→</span>
@@ -625,6 +741,12 @@ export default function Storefront({
                   <span>Subtotal Kue</span>
                   <strong>{money(cartTotal)}</strong>
                 </div>
+                {discountAmount > 0 && (
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#2d7a42" }}>
+                    <span>Diskon Voucher ({appliedPromo?.code})</span>
+                    <strong style={{ fontWeight: "700" }}>−{money(discountAmount)}</strong>
+                  </div>
+                )}
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
                   <span>Ongkos Kirim ({selectedShipping ? selectedShipping.courierName : "Belum dipilih"})</span>
                   <strong style={{ color: selectedShipping?.isFree ? "#278044" : "inherit" }}>
