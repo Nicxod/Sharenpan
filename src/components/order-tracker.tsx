@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import SharedNavbar from "@/components/shared-navbar";
 
 type TrackingStatus =
   | "pending"
@@ -105,30 +106,8 @@ export default function OrderTracker() {
 
   return (
     <div className="tracker-shell">
-      {/* Topbar */}
-      <div className="topbar">
-        <span>Gratis ongkir untuk pesanan di atas Rp500.000</span>
-        <span className="topbar-separator">•</span>
-        <span>Dibuat fresh berdasarkan pesanan</span>
-      </div>
-
-      {/* Navbar */}
-      <header className="navbar">
-        <Link className="brand" href="/" aria-label="Sharenpan home">
-          <img src="/assets/logo.png" alt="Sharenpan Logo" className="brand-logo-img" />
-          <span>
-            sharenpan
-            <small>lapis legit premium</small>
-          </span>
-        </Link>
-        <nav className="desktop-nav" aria-label="Navigasi utama">
-          <Link href="/">Home</Link>
-          <Link href="/#produk">Produk</Link>
-          <Link href="/#cerita">Tentang kami</Link>
-          <Link href="/#cara-order">Cara order</Link>
-          <Link href="/lacak" className="nav-pesanan-highlight">📦 Lacak Pesanan</Link>
-        </nav>
-      </header>
+      {/* Shared Navbar — konsisten dengan semua halaman */}
+      <SharedNavbar variant="lacak" />
 
       <main className="tracker-main content-width">
         {/* Hero */}

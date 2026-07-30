@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import PaymentGatewayModal from "@/components/payment-gateway-modal";
+import SharedNavbar from "@/components/shared-navbar";
 
 export type CustomerOrder = {
   id: string;
@@ -123,41 +124,8 @@ export default function CustomerDashboard({ initialData }: { initialData: Custom
 
   return (
     <div className="cd-shell">
-      {/* ── TOPBAR ── */}
-      <div className="cd-topbar">
-        Gratis ongkir untuk pesanan di atas Rp500.000 &nbsp;•&nbsp; Dibuat fresh berdasarkan pesanan
-      </div>
-
-      {/* ── NAVBAR ── */}
-      <header className="cd-navbar">
-        <div className="cd-navbar-inner">
-          <Link href="/" className="brand">
-            <img src="/assets/logo.png" alt="Sharenpan" className="brand-logo-img" />
-            <span>sharenpan<small>lapis legit premium</small></span>
-          </Link>
-
-          {/* desktop nav items inside navbar */}
-          <nav className="cd-navbar-nav" aria-label="Dashboard menu">
-            {navItems.map((item) => (
-              <button
-                key={item.key}
-                className={`cd-nav-btn ${tab === item.key ? "cd-nav-btn--active" : ""}`}
-                onClick={() => setTab(item.key)}
-              >
-                {item.icon} {item.label}
-                {item.badge ? <span className="cd-nav-badge">{item.badge}</span> : null}
-              </button>
-            ))}
-          </nav>
-
-          <div className="cd-navbar-actions">
-            <Link href="/" className="primary-button" style={{ fontSize: "12px", padding: "8px 16px", minHeight: "36px" }}>
-              🛍️ Belanja Lagi <span>→</span>
-            </Link>
-            <button className="logout-button" onClick={signOut} style={{ minHeight: "36px" }}>Keluar</button>
-          </div>
-        </div>
-      </header>
+      {/* ── SHARED NAVBAR — sama persis dengan halaman lain ── */}
+      <SharedNavbar variant="customer" onSignOut={signOut} />
 
       {/* ── BODY: SIDEBAR + CONTENT ── */}
       <div className="cd-body">
