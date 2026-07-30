@@ -312,11 +312,6 @@ export default function Storefront({
           <a href="/lacak" className="nav-pesanan-highlight">
             📦 Lacak Pesanan
           </a>
-          {user && (
-            <a href="/customer">
-              👤 Dashboard
-            </a>
-          )}
         </nav>
         <div className="nav-actions">
           {user ? (
