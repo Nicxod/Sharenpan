@@ -2217,3 +2217,588 @@ h1 em, h2 em { color: var(--gold); font-style: italic; }
   color: #8c7868;
   margin-top: 14px;
 }
+
+/* ============================================================
+   REDESIGNED CUSTOMER DASHBOARD STYLES
+   ============================================================ */
+.customer-redesign-shell {
+  min-height: 100vh;
+  background: var(--paper);
+  display: flex;
+  flex-direction: column;
+}
+
+.customer-clean-navbar {
+  background: #ffffff;
+  border-bottom: 1px solid var(--line);
+  padding: 14px 0;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  box-shadow: 0 4px 16px rgba(55, 37, 24, 0.03);
+}
+
+.nav-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.nav-actions-clean {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.customer-redesign-main {
+  padding-block: 32px 70px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+/* Hero User Card */
+.customer-hero-card {
+  background: linear-gradient(135deg, #372518 0%, #583c27 100%);
+  color: #fff9f2;
+  border-radius: 24px;
+  padding: 32px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  box-shadow: 0 14px 36px rgba(55, 37, 24, 0.18);
+  margin-bottom: 24px;
+}
+
+.hero-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: #d9a56c;
+  color: #34261f;
+  font-family: Georgia, serif;
+  font-size: 32px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 4px solid rgba(255, 255, 255, 0.2);
+  flex-shrink: 0;
+}
+
+.hero-info h1 {
+  font-family: Georgia, serif;
+  font-size: 26px;
+  font-weight: 500;
+  margin: 6px 0 4px;
+  color: #ffffff;
+}
+
+.hero-info p {
+  color: #e3d3c5;
+  font-size: 13px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.hero-tags {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.hero-tag-pill {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(217, 165, 108, 0.25);
+  color: #f2d0a9;
+  border: 1px solid rgba(217, 165, 108, 0.4);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.hero-tag-email {
+  font-size: 12px;
+  color: #cbb6a6;
+}
+
+/* 3 Summary Stat Cards */
+.customer-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.stat-card {
+  background: #ffffff;
+  border: 1px solid #ebdccb;
+  border-radius: 18px;
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 6px 18px rgba(55, 37, 24, 0.04);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(55, 37, 24, 0.08);
+}
+
+.stat-icon {
+  font-size: 28px;
+  width: 50px;
+  height: 50px;
+  border-radius: 14px;
+  background: #fdf3e5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.stat-label {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.stat-value {
+  display: block;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--ink);
+  margin-top: 2px;
+}
+
+/* Tab Navigation Pills */
+.customer-tab-pills {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 12px;
+  margin-bottom: 24px;
+  overflow-x: auto;
+}
+
+.tab-pill {
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid #dcd1c4;
+  color: #6f5b4d;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tab-pill.active {
+  background: #6f4932;
+  color: #ffffff;
+  border-color: #6f4932;
+  box-shadow: 0 4px 12px rgba(111, 73, 50, 0.25);
+}
+
+.tab-badge {
+  background: #d9a56c;
+  color: #34261f;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+
+.tab-pill.active .tab-badge {
+  background: #ffffff;
+  color: #6f4932;
+}
+
+.section-title-box h2 {
+  font-family: Georgia, serif;
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0 0 4px;
+  color: var(--ink);
+}
+
+.section-title-box p {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0 0 20px;
+}
+
+.search-header-box {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.search-order-input {
+  padding: 10px 14px;
+  border: 1px solid #dcd1c4;
+  border-radius: 10px;
+  font-size: 13px;
+  width: min(280px, 100%);
+}
+
+/* Modern Active Order Card */
+.order-modern-card {
+  background: #ffffff;
+  border: 1px solid #ebdccb;
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 8px 24px rgba(55, 37, 24, 0.05);
+  margin-bottom: 20px;
+}
+
+.order-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+}
+
+.order-number-title {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.order-number-box h3 {
+  font-family: Georgia, serif;
+  font-size: 22px;
+  color: #6f4932;
+  margin: 2px 0;
+}
+
+.order-date-text {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.order-status-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.status-pill-modern {
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: #fdf3e5;
+  color: #6f4932;
+  border: 1px solid #e5cdb2;
+}
+
+.status-pill-payment {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.badge-paid {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #a5d6a7;
+}
+
+.badge-unpaid {
+  background: #fff3e0;
+  color: #e65100;
+  border: 1px solid #ffcc80;
+}
+
+.badge-failed {
+  background: #ffebee;
+  color: #c62828;
+  border: 1px solid #ef9a9a;
+}
+
+.delivery-date-banner-mini {
+  background: #fdf8f2;
+  border: 1px solid #ebdccb;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #6f4932;
+  margin-bottom: 16px;
+}
+
+.stepper-horizontal {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  margin: 20px 0;
+  position: relative;
+}
+
+.step-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  opacity: 0.45;
+}
+
+.step-item.done {
+  opacity: 1;
+}
+
+.step-bubble {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #f2e7db;
+  color: #6f4932;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  border: 2px solid #e2d2bf;
+  margin-bottom: 6px;
+}
+
+.step-item.done .step-bubble {
+  background: #6f4932;
+  color: #ffffff;
+  border-color: #6f4932;
+}
+
+.step-item.current .step-bubble {
+  background: #6f4932;
+  color: #ffffff;
+  border-color: #6f4932;
+  box-shadow: 0 0 0 4px rgba(111, 73, 50, 0.2);
+}
+
+.step-text {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.2;
+}
+
+.step-subtext {
+  font-size: 9px;
+  color: #8c7868;
+  margin-top: 2px;
+}
+
+.order-card-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+  margin-top: 14px;
+}
+
+.order-total-preview span {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.order-total-preview strong {
+  font-family: Georgia, serif;
+  font-size: 20px;
+  color: #6f4932;
+}
+
+.order-action-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+/* History Grid */
+.orders-list-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.order-history-card {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 18px 20px;
+  box-shadow: 0 4px 14px rgba(55, 37, 24, 0.03);
+}
+
+.history-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.history-top strong {
+  font-family: Georgia, serif;
+  font-size: 18px;
+  color: #6f4932;
+}
+
+.history-date {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.history-badges {
+  display: flex;
+  gap: 6px;
+}
+
+.history-middle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #faf6f0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  margin-bottom: 12px;
+}
+
+.history-label {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.history-value {
+  font-size: 12px;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.history-price {
+  font-family: Georgia, serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #6f4932;
+}
+
+.history-bottom {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Profile Grid Cards */
+.profile-grid-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.profile-card {
+  background: #ffffff;
+  border: 1px solid #ebdccb;
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 8px 24px rgba(55, 37, 24, 0.04);
+}
+
+.profile-card h3 {
+  font-family: Georgia, serif;
+  font-size: 20px;
+  color: #6f4932;
+  margin: 0 0 16px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 10px;
+}
+
+.profile-field-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--line);
+}
+
+.profile-field-row:last-child {
+  border-bottom: none;
+}
+
+.field-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.field-val {
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.empty-state-card {
+  text-align: center;
+  padding: 48px 24px;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+}
+
+.empty-icon {
+  font-size: 48px;
+  display: block;
+  margin-bottom: 12px;
+}
+
+.empty-state-card h3 {
+  font-family: Georgia, serif;
+  font-size: 20px;
+  margin: 0 0 6px;
+}
+
+.empty-state-card p {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  .customer-hero-card {
+    flex-direction: column;
+    text-align: center;
+  }
+  .stepper-horizontal {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .order-card-top {
+    flex-direction: column;
+  }
+  .order-status-group {
+    align-items: flex-start;
+  }
+  .order-card-bottom {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .order-action-buttons {
+    width: 100%;
+  }
+  .order-action-buttons button {
+    flex: 1;
+  }
+}
+
