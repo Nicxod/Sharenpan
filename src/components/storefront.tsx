@@ -706,8 +706,8 @@ export default function Storefront({
               <p className="eyebrow">Cerita & Ulasan Pelanggan</p>
               <h2>📸 #SharenpanMoments</h2>
             </div>
-            <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="secondary-button" style={{ display: "inline-flex", gap: "6px", alignItems: "center", minHeight: "auto", padding: "8px 16px", fontSize: "12px" }}>
-              Follow @sharenpan.id ↗
+            <a href="https://www.instagram.com/sharenpan_/" target="_blank" rel="noopener noreferrer" className="secondary-button" style={{ display: "inline-flex", gap: "6px", alignItems: "center", minHeight: "auto", padding: "8px 16px", fontSize: "12px" }}>
+              Follow @sharenpan_ ↗
             </a>
           </div>
 
@@ -1219,7 +1219,7 @@ export default function Storefront({
               </p>
               <div className="wa-quick-chips">
                 <a
-                  href="https://wa.me/6281234567890?text=Halo%20Sharenpan%2C%20saya%20mau%20tanya%20paket%20hampers%20lapis%20legit"
+                  href="https://wa.me/62895321759440?text=Halo%20Sharenpan%2C%20saya%20mau%20tanya%20paket%20hampers%20lapis%20legit"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="wa-chip"
@@ -1227,7 +1227,7 @@ export default function Storefront({
                   🎁 Tanya Paket Hampers
                 </a>
                 <a
-                  href="https://wa.me/6281234567890?text=Halo%20Sharenpan%2C%20apakah%20bisa%20kirim%20ke%20kota%20saya%3F"
+                  href="https://wa.me/62895321759440?text=Halo%20Sharenpan%2C%20apakah%20bisa%20kirim%20ke%20kota%20saya%3F"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="wa-chip"
@@ -1235,7 +1235,7 @@ export default function Storefront({
                   🚚 Cek Pengiriman CS
                 </a>
                 <a
-                  href="https://wa.me/6281234567890?text=Halo%20Sharenpan%2C%20saya%20mau%20konsultasi%20pesanan%20khusus"
+                  href="https://wa.me/62895321759440?text=Halo%20Sharenpan%2C%20saya%20mau%20konsultasi%20pesanan%20khusus"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="wa-chip"
@@ -1246,12 +1246,12 @@ export default function Storefront({
             </div>
             <div className="wa-chat-footer">
               <a
-                href="https://wa.me/6281234567890?text=Halo%20Sharenpan%2C%20saya%20ingin%20bertanya%20seputar%20lapis%20legit"
+                href="https://wa.me/62895321759440?text=Halo%20Sharenpan%2C%20saya%20ingin%20bertanya%20seputar%20lapis%20legit"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="wa-send-btn"
               >
-                Mulai Chat WhatsApp 💬
+                Mulai Chat WhatsApp (+62 895-3217-59440) 💬
               </a>
             </div>
           </div>
