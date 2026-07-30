@@ -567,7 +567,84 @@ export default function Storefront({
           </div>
         </section>
 
+        {/* 4.5 ── HALAL CERTIFICATION */}
+        <section className="halal-section content-width">
+          <div className="halal-photo-col">
+            <div className="halal-photo-frame">
+              <img
+                src="/assets/sertifikat-halal.jpg"
+                alt="Sertifikasi Halal MUI Sharenpan"
+                className="halal-photo"
+              />
+              <div className="halal-photo-badge">
+                <span className="halal-moon">☽</span>
+                <span className="halal-badge-text">HALAL</span>
+                <span className="halal-badge-sub">MUI Certified</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="halal-copy-col">
+            <div className="halal-tag-row">
+              <span className="halal-eyebrow-pill">🌙 Tersertifikasi Resmi</span>
+            </div>
+            <h2 className="halal-title">
+              Aman, Bersih,
+              <br />
+              <em>& Halal Terjamin.</em>
+            </h2>
+            <p className="halal-desc">
+              Setiap lapis legit Sharenpan diproduksi dengan bahan-bahan pilihan yang telah
+              melewati proses sertifikasi halal resmi dari Majelis Ulama Indonesia (MUI).
+              Bukan sekadar janji—ini komitmen kami untuk setiap keluarga di Indonesia.
+            </p>
+
+            <ul className="halal-points">
+              <li>
+                <span className="halal-check">✓</span>
+                <div>
+                  <strong>Bahan 100% Terseleksi Halal</strong>
+                  <small>Butter Wijsman, telur, dan tepung premium tersertifikasi</small>
+                </div>
+              </li>
+              <li>
+                <span className="halal-check">✓</span>
+                <div>
+                  <strong>Dapur Bersih & Higienis</strong>
+                  <small>Proses produksi sesuai standar kebersihan pangan nasional</small>
+                </div>
+              </li>
+              <li>
+                <span className="halal-check">✓</span>
+                <div>
+                  <strong>Sertifikasi MUI Resmi</strong>
+                  <small>Diakui oleh Badan Penyelenggara Jaminan Produk Halal (BPJPH)</small>
+                </div>
+              </li>
+            </ul>
+
+            <div className="halal-seal-row">
+              <div className="halal-seal">
+                <span className="halal-seal-icon">🌙</span>
+                <div>
+                  <strong>Halal MUI</strong>
+                  <small>No. Sertifikat Resmi</small>
+                </div>
+              </div>
+              <div className="halal-divider" />
+              <div className="halal-seal">
+                <span className="halal-seal-icon">🛡️</span>
+                <div>
+                  <strong>BPJPH</strong>
+                  <small>Terdaftar & Terverifikasi</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* 5 ── PRODUK (pembeli sudah "warm", siap beli) */}
+
         <section className="featured-section content-width" id="produk">
           <div className="section-heading">
             <div>
