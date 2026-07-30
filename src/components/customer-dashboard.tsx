@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import PaymentGatewayModal from "@/components/payment-gateway-modal";
@@ -117,7 +117,22 @@ export default function CustomerDashboard({ initialData }: { initialData: Custom
   const [activeTab, setActiveTab] = useState<TabType>("overview");
   const [selectedOrderForPay, setSelectedOrderForPay] = useState<CustomerOrder | null>(null);
   const [selectedOrderForDetail, setSelectedOrderForDetail] = useState<CustomerOrder | null>(null);
+  const [selectedOrderForFeedback, setSelectedOrderForFeedback] = useState<CustomerOrder | null>(null);
+  const [feedbackRating, setFeedbackRating] = useState(5);
+  const [feedbackMessage, setFeedbackMessage] = useState("");
+  const [feedbackSuccess, setFeedbackSuccess] = useState("");
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get("tab");
+      if (tabParam === "profile" || tabParam === "orders" || tabParam === "overview") {
+        setActiveTab(tabParam as TabType);
+      }
+    }
+  }, []);
 
   async function signOut() {
     await createClient().auth.signOut();
@@ -153,17 +168,39 @@ export default function CustomerDashboard({ initialData }: { initialData: Custom
 
   return (
     <div className="customer-shell">
-      <header className="customer-header">
+      <header className="navbar">
         <Link className="brand" href="/">
-          <span className="brand-mark">S</span>
+          <img src="/assets/logo.png" alt="Sharenpan Logo" className="brand-logo-img" />
           <span>
             sharenpan
             <small>lapis legit premium</small>
           </span>
         </Link>
-        <div className="customer-actions">
-          <Link href="/">🏠 Kembali ke toko</Link>
-          <button onClick={signOut}>Keluar</button>
+        <nav className="desktop-nav" aria-label="Navigasi utama">
+          <Link href="/">Home</Link>
+          <Link href="/#produk">Produk</Link>
+          <Link href="/#cerita">Tentang kami</Link>
+          <Link href="/#cara-order">Cara order</Link>
+          <button
+            className="nav-pesanan-highlight active-nav"
+            onClick={() => setActiveTab("overview")}
+          >
+            📦 Pesanan
+          </button>
+        </nav>
+        <div className="nav-actions">
+          <button
+            className={`account-button ${activeTab === "profile" ? "active-profile" : ""}`}
+            onClick={() => setActiveTab("profile")}
+          >
+            👤 Profil Saya
+          </button>
+          <Link href="/" className="cart-button" title="Kembali ke toko">
+            Ke Toko 🛍️
+          </Link>
+          <button className="logout-button" onClick={signOut}>
+            Keluar
+          </button>
         </div>
       </header>
 
@@ -176,25 +213,6 @@ export default function CustomerDashboard({ initialData }: { initialData: Custom
             <p>Pantau proses pesanan lapis legit fresh Anda dalam satu tempat.</p>
           </div>
           <span className="customer-avatar">{data.name.slice(0, 1).toUpperCase()}</span>
-        </div>
-
-        {/* Quick Summary Cards */}
-        <div className="customer-summary">
-          <div>
-            <span>Total Pesanan</span>
-            <strong>{data.orders.length}</strong>
-            <small>Riwayat Transaksi</small>
-          </div>
-          <div>
-            <span>Pesanan Sedang Diproses</span>
-            <strong>{activeOrders.length}</strong>
-            <small>Dipanggang & Dikirim</small>
-          </div>
-          <div>
-            <span>Total Belanja</span>
-            <strong>{money(data.orders.reduce((total, order) => total + order.total, 0))}</strong>
-            <small>Akumulasi Pembelian</small>
-          </div>
         </div>
 
         {/* Tab Switcher Navigation */}
@@ -341,6 +359,11 @@ export default function CustomerDashboard({ initialData }: { initialData: Custom
                         <button className="btn-detail-order" onClick={() => setSelectedOrderForDetail(order)}>
                           Lacak
                         </button>
+                        {order.status === "completed" && (
+                          <button className="btn-detail-order" style={{ borderColor: "#b47c42", color: "#6f4932" }} onClick={() => setSelectedOrderForFeedback(order)}>
+                            💬 Feedback
+                          </button>
+                        )}
                         {order.payment_status === "unpaid" && (
                           <button className="btn-pay-now" onClick={() => setSelectedOrderForPay(order)}>
                             Bayar
@@ -468,6 +491,98 @@ export default function CustomerDashboard({ initialData }: { initialData: Custom
           onClose={() => setSelectedOrderForPay(null)}
           onSuccess={handlePaymentSuccess}
         />
+      )}
+
+      {/* PRIVATE FEEDBACK MODAL */}
+      {selectedOrderForFeedback && (
+        <div className="modal-backdrop" role="presentation" onClick={() => setSelectedOrderForFeedback(null)}>
+          <div className="order-detail-modal" role="dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "480px" }}>
+            <button className="modal-close" onClick={() => setSelectedOrderForFeedback(null)}>×</button>
+            <p className="eyebrow">Peningkatan Layanan</p>
+            <h2 style={{ fontFamily: "Georgia, serif", fontSize: "24px", margin: "6px 0 10px" }}>
+              Masukan Privat Pelanggan
+            </h2>
+            <p style={{ fontSize: "12px", color: "var(--muted)", margin: "0 0 18px" }}>
+              Masukan Anda untuk Order <strong>#{selectedOrderForFeedback.order_number}</strong> dikirim secara privat langsung ke manajemen Admin Sharenpan.
+            </p>
+
+            {feedbackSuccess ? (
+              <div className="success-message" style={{ textAlign: "center", padding: "18px" }}>
+                {feedbackSuccess}
+              </div>
+            ) : (
+              <form
+                className="stack-form"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!feedbackMessage.trim()) return;
+                  setFeedbackLoading(true);
+                  try {
+                    const supabase = createClient();
+                    const { data: { user } } = await supabase.auth.getUser();
+                    await supabase.from("customer_feedback").insert({
+                      order_id: selectedOrderForFeedback.id,
+                      user_id: user?.id || null,
+                      customer_name: data.name,
+                      customer_email: data.email,
+                      rating_score: feedbackRating,
+                      message: feedbackMessage.trim(),
+                    });
+                    setFeedbackSuccess("Terima kasih! Masukan Anda telah terkirim secara privat ke Admin Sharenpan.");
+                    setTimeout(() => {
+                      setFeedbackSuccess("");
+                      setSelectedOrderForFeedback(null);
+                      setFeedbackMessage("");
+                    }, 2200);
+                  } catch {
+                    //
+                  } finally {
+                    setFeedbackLoading(false);
+                  }
+                }}
+              >
+                <label>
+                  Tingkat Kepuasan (Internal)
+                  <div style={{ display: "flex", gap: "8px", margin: "6px 0" }}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setFeedbackRating(star)}
+                        style={{
+                          border: "1px solid #e2d5c5",
+                          borderRadius: "8px",
+                          background: feedbackRating >= star ? "#fffbf2" : "#ffffff",
+                          color: feedbackRating >= star ? "#bd7f35" : "#ccc",
+                          fontSize: "20px",
+                          padding: "6px 12px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        ★
+                      </button>
+                    ))}
+                  </div>
+                </label>
+
+                <label>
+                  Kritik, Saran, Rasa Kue & Pengiriman
+                  <textarea
+                    rows={4}
+                    value={feedbackMessage}
+                    onChange={(e) => setFeedbackMessage(e.target.value)}
+                    required
+                    placeholder="Tuliskan pendapat Anda mengenai rasa kue lapis legit, kerapian kemasan, atau pelayanan kami..."
+                  />
+                </label>
+
+                <button className="primary-button full-button" disabled={feedbackLoading}>
+                  {feedbackLoading ? "Mengirim..." : "Kirim Masukan Privat ke Admin"} <span>→</span>
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
