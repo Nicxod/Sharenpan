@@ -482,6 +482,92 @@ export default function Storefront({
           </div>
         </section>
 
+        {/* 2 ── BRAND STORY (naik ke atas, kenalan dulu) */}
+        <section className="story-section content-width" id="cerita">
+          <div className="story-image">
+            <img src="/assets/lapis-legit.jpg" alt="Tekstur lapis legit Sharenpan" />
+            <span className="story-card">
+              EST.
+              <strong>2014</strong>
+            </span>
+          </div>
+          <div className="story-copy">
+            <p className="eyebrow">Dibuat dengan sabar</p>
+            <h2>
+              Bukan sekadar kue,
+              <br />
+              ini <em>warisan rasa.</em>
+            </h2>
+            <p>
+              Di Sharenpan, kami percaya hal-hal baik memang membutuhkan waktu.
+              Setiap lapis dipanggang dengan api kecil dan perhatian penuh—
+              menghasilkan tekstur lembut, aroma butter yang hangat, dan rasa
+              yang tinggal lebih lama.
+            </p>
+            <a className="text-link" href="#produk">
+              Lihat menu lengkap <span>↓</span>
+            </a>
+          </div>
+        </section>
+
+        {/* 3 ── VIDEO HOMEMADE KITCHEN */}
+        <section className="desire-section content-width" id="homemade">
+          <div className="section-heading desire-heading">
+            <div>
+              <p className="eyebrow">Dibuat Sepenuh Hati</p>
+              <h2>Dari Dapur Kami,<br /><em>sampai ke momen Anda.</em></h2>
+            </div>
+            <p className="desire-intro">Setiap lapis dipanggang perlahan, dikemas dengan rapi, lalu dikirim fresh untuk orang-orang tersayang.</p>
+          </div>
+          <div className="homemade-grid">
+            <article className="video-story-card">
+              <div className="video-frame">
+                <video autoPlay muted loop playsInline controls preload="metadata">
+                  <source src="/assets/homemade-kitchen-1.mp4" type="video/mp4" />
+                </video>
+              </div>
+              <div className="video-card-copy">
+                <span className="video-step">01 / PROSES HOMEMADE</span>
+                <h3>Adonan Pilihan, Dibuat Fresh Setiap Hari.</h3>
+                <p>Butter harum Wijsman dan telur pilihan dipersiapkan dengan teliti sebelum dipanggang selapis demi selapis.</p>
+              </div>
+            </article>
+            <article className="video-story-card video-story-card-offset">
+              <div className="video-frame">
+                <video autoPlay muted loop playsInline controls preload="metadata">
+                  <source src="/assets/homemade-kitchen-2.mp4" type="video/mp4" />
+                </video>
+              </div>
+              <div className="video-card-copy">
+                <span className="video-step">02 / PEMANGGANGAN PERLAHAN</span>
+                <h3>Lapis demi Lapis, Dipanggang Sempurna.</h3>
+                <p>Ketelitian api dan kesabaran menghasilkan tekstur yang luar biasa lembut dan wangi khas warisan resep.</p>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        {/* 4 ── TRUST / STATS — social proof sebelum produk */}
+        <section className="trust-row content-width">
+          <div>
+            <strong>★★★★★</strong>
+            <span>4.9 customer rating</span>
+          </div>
+          <div>
+            <strong>2.500+</strong>
+            <span>lapis legit terjual</span>
+          </div>
+          <div>
+            <strong>100%</strong>
+            <span>real butter</span>
+          </div>
+          <div>
+            <strong>2014</strong>
+            <span>dipercaya sejak</span>
+          </div>
+        </section>
+
+        {/* 5 ── PRODUK (pembeli sudah "warm", siap beli) */}
         <section className="featured-section content-width" id="produk">
           <div className="section-heading">
             <div>
@@ -569,90 +655,7 @@ export default function Storefront({
           </div>
         </section>
 
-        <section className="trust-row content-width">
-          <div>
-            <strong>★★★★★</strong>
-            <span>4.9 customer rating</span>
-          </div>
-          <div>
-            <strong>2.500+</strong>
-            <span>lapis legit terjual</span>
-          </div>
-          <div>
-            <strong>100%</strong>
-            <span>real butter</span>
-          </div>
-          <div>
-            <strong>2014</strong>
-            <span>dipercaya sejak</span>
-          </div>
-        </section>
-
-        {/* VIDEO HOMEMADE KITCHEN SECTION */}
-        <section className="desire-section content-width" id="homemade">
-          <div className="section-heading desire-heading">
-            <div>
-              <p className="eyebrow">Dibuat Sepenuh Hati</p>
-              <h2>Dari Dapur Kami,<br /><em>sampai ke momen Anda.</em></h2>
-            </div>
-            <p className="desire-intro">Setiap lapis dipanggang perlahan, dikemas dengan rapi, lalu dikirim fresh untuk orang-orang tersayang.</p>
-          </div>
-          <div className="homemade-grid">
-            <article className="video-story-card">
-              <div className="video-frame">
-                <video autoPlay muted loop playsInline controls preload="metadata">
-                  <source src="/assets/homemade-kitchen-1.mp4" type="video/mp4" />
-                </video>
-              </div>
-              <div className="video-card-copy">
-                <span className="video-step">01 / PROSES HOMEMADE</span>
-                <h3>Adonan Pilihan, Dibuat Fresh Setiap Hari.</h3>
-                <p>Butter harum Wijsman dan telur pilihan dipersiapkan dengan teliti sebelum dipanggang selapis demi selapis.</p>
-              </div>
-            </article>
-            <article className="video-story-card video-story-card-offset">
-              <div className="video-frame">
-                <video autoPlay muted loop playsInline controls preload="metadata">
-                  <source src="/assets/homemade-kitchen-2.mp4" type="video/mp4" />
-                </video>
-              </div>
-              <div className="video-card-copy">
-                <span className="video-step">02 / PEMANGGANGAN PERLAHAN</span>
-                <h3>Lapis demi Lapis, Dipanggang Sempurna.</h3>
-                <p>Ketelitian api dan kesabaran menghasilkan tekstur yang luar biasa lembut dan wangi khas warisan resep.</p>
-              </div>
-            </article>
-          </div>
-        </section>
-
-        <section className="story-section content-width" id="cerita">
-          <div className="story-image">
-            <img src="/assets/lapis-legit.jpg" alt="Tekstur lapis legit Sharenpan" />
-            <span className="story-card">
-              EST.
-              <strong>2014</strong>
-            </span>
-          </div>
-          <div className="story-copy">
-            <p className="eyebrow">Dibuat dengan sabar</p>
-            <h2>
-              Bukan sekadar kue,
-              <br />
-              ini <em>warisan rasa.</em>
-            </h2>
-            <p>
-              Di Sharenpan, kami percaya hal-hal baik memang membutuhkan waktu.
-              Setiap lapis dipanggang dengan api kecil dan perhatian penuh—
-              menghasilkan tekstur lembut, aroma butter yang hangat, dan rasa
-              yang tinggal lebih lama.
-            </p>
-            <a className="text-link" href="#cara-order">
-              Kenali cara order <span>→</span>
-            </a>
-          </div>
-        </section>
-
-        {/* SPECIAL EDITION VIDEO BANNER */}
+        {/* 6 ── SPECIAL EDITION HAMPERS */}
         <section className="special-edition content-width">
           <div className="special-video">
             <video autoPlay muted loop playsInline controls preload="metadata">
@@ -674,32 +677,7 @@ export default function Storefront({
           </div>
         </section>
 
-        <section className="order-banner content-width" id="cara-order">
-          <div>
-            <p className="eyebrow">Pesan untuk momen spesialmu</p>
-            <h2>
-              Freshly baked.
-              <br />
-              Thoughtfully made.
-            </h2>
-          </div>
-          <div className="order-steps">
-            <div>
-              <b>01</b>
-              <span>Pilih rasa favorit</span>
-            </div>
-            <div>
-              <b>02</b>
-              <span>Tentukan tanggal kirim</span>
-            </div>
-            <div>
-              <b>03</b>
-              <span>Nikmati setiap lapis</span>
-            </div>
-          </div>
-        </section>
-
-        {/* UGC & SOCIAL PROOF GALLERY SECTION */}
+        {/* 7 ── UGC & SOCIAL PROOF */}
         <section className="ugc-section content-width">
           <div className="section-heading">
             <div>
@@ -740,6 +718,33 @@ export default function Storefront({
             </div>
           </div>
         </section>
+
+        {/* 8 ── CARA ORDER (penutup, CTA terakhir) */}
+        <section className="order-banner content-width" id="cara-order">
+          <div>
+            <p className="eyebrow">Pesan untuk momen spesialmu</p>
+            <h2>
+              Freshly baked.
+              <br />
+              Thoughtfully made.
+            </h2>
+          </div>
+          <div className="order-steps">
+            <div>
+              <b>01</b>
+              <span>Pilih rasa favorit</span>
+            </div>
+            <div>
+              <b>02</b>
+              <span>Tentukan tanggal kirim</span>
+            </div>
+            <div>
+              <b>03</b>
+              <span>Nikmati setiap lapis</span>
+            </div>
+          </div>
+        </section>
+
       </main>
 
       <aside className={cartOpen ? "cart-drawer open" : "cart-drawer"}>
