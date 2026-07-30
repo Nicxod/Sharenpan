@@ -56,13 +56,15 @@ export default function Storefront({
   const [filter, setFilter] = useState<Filter>("all");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [toast, setToast] = useState("");
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
   const [checkoutLoading, setCheckoutLoading] = useState(false);
-  const [checkout, setCheckout] = useState({ name: "", phone: "", address: "", city: "", notes: "" });
+  const [checkout, setCheckout] = useState({ name: "", phone: "", address: "", city: "", notes: "", deliveryDate: "" });
+  const [deliveryDateError, setDeliveryDateError] = useState("");
   const [detailProduct, setDetailProduct] = useState<StorefrontProduct | null>(null);
   const [detailSize, setDetailSize] = useState<"full" | "half">("full");
   const [detailQty, setDetailQty] = useState(1);
@@ -221,6 +223,23 @@ export default function Storefront({
   async function submitCheckout(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!user || !cart.length) return;
+
+    // Validate delivery date: minimum 2 days from now
+    if (!checkout.deliveryDate) {
+      setDeliveryDateError("Pilih tanggal pengiriman terlebih dahulu.");
+      return;
+    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const minDelivery = new Date(today);
+    minDelivery.setDate(minDelivery.getDate() + 2);
+    const chosen = new Date(checkout.deliveryDate);
+    if (chosen < minDelivery) {
+      setDeliveryDateError("Pesanan minimal dibuat 2 hari sebelum pengiriman. Pilih tanggal yang lebih jauh.");
+      return;
+    }
+    setDeliveryDateError("");
+
     setCheckoutLoading(true);
     setCheckoutError("");
     const supabase = createClient();
@@ -236,6 +255,7 @@ export default function Storefront({
         etd: selectedShipping ? selectedShipping.etd : "1-2 Hari",
       },
       notes: checkout.notes || null,
+      desired_delivery_date: checkout.deliveryDate,
       subtotal: cartTotal,
       shipping_fee: currentShippingCost,
       total: finalTotal,
@@ -325,7 +345,57 @@ export default function Storefront({
             </>
           )}
         </div>
+
+        {/* Mobile: Cart + Hamburger */}
+        <div className="mobile-nav-controls">
+          <button className="mobile-cart-btn" onClick={() => setCartOpen(true)} aria-label="Keranjang">
+            🛒
+            {cartCount > 0 && <span className="mobile-cart-badge">{cartCount}</span>}
+          </button>
+          <button
+            className="hamburger-btn"
+            onClick={() => setMobileMenuOpen((v) => !v)}
+            aria-label="Menu navigasi"
+            aria-expanded={mobileMenuOpen}
+          >
+            <span className={mobileMenuOpen ? "ham-line open" : "ham-line"} />
+            <span className={mobileMenuOpen ? "ham-line open" : "ham-line"} />
+            <span className={mobileMenuOpen ? "ham-line open" : "ham-line"} />
+          </button>
+        </div>
       </header>
+
+      {/* Mobile Drawer Menu */}
+      {mobileMenuOpen && (
+        <div className="mobile-menu-backdrop" onClick={() => setMobileMenuOpen(false)}>
+          <nav className="mobile-menu-drawer" onClick={(e) => e.stopPropagation()} aria-label="Menu mobile">
+            <div className="mobile-menu-top">
+              <div className="brand" style={{ pointerEvents: "none" }}>
+                <img src="/assets/logo.png" alt="Sharenpan Logo" className="brand-logo-img" />
+                <span>sharenpan<small style={{ display: "block", fontSize: "8px", fontWeight: 700, letterSpacing: ".2em", textTransform: "uppercase", color: "#a1795a" }}>lapis legit premium</small></span>
+              </div>
+              <button className="mobile-menu-close" onClick={() => setMobileMenuOpen(false)} aria-label="Tutup menu">×</button>
+            </div>
+            <div className="mobile-menu-links">
+              <a href="#home" onClick={() => setMobileMenuOpen(false)}>🏠 Home</a>
+              <a href="#produk" onClick={() => setMobileMenuOpen(false)}>🎂 Produk</a>
+              <a href="#cerita" onClick={() => setMobileMenuOpen(false)}>💬 Tentang kami</a>
+              <a href="#cara-order" onClick={() => setMobileMenuOpen(false)}>📋 Cara order</a>
+              {user && <a href="/customer" className="nav-pesanan-highlight" style={{ display: "flex" }}>📦 Lacak Pesanan</a>}
+            </div>
+            <div className="mobile-menu-footer">
+              {user ? (
+                <>
+                  <a href="/customer?tab=profile" className="primary-button full-button" style={{ textAlign: "center" }} onClick={() => setMobileMenuOpen(false)}>👤 Profil Saya</a>
+                  <button className="logout-button full-button" style={{ width: "100%", marginTop: "8px" }} onClick={async () => { await createClient().auth.signOut(); setUser(null); setMobileMenuOpen(false); }}>Keluar</button>
+                </>
+              ) : (
+                <button className="primary-button full-button" onClick={() => { setAuthOpen(true); setMobileMenuOpen(false); }}>Masuk / Daftar</button>
+              )}
+            </div>
+          </nav>
+        </div>
+      )}
 
       <main>
         <section className="hero-section content-width" id="home">
@@ -423,37 +493,56 @@ export default function Storefront({
             )}
           </div>
           <div className="product-grid">
-            {filteredProducts.map((product) => (
-              <article className="product-card" key={product.id}>
-                <div className="product-image" onClick={() => { setDetailProduct(product); setDetailSize("full"); setDetailQty(1); }} style={{ cursor: "pointer" }}>
-                  <span className="product-tag">{product.tag}</span>
-                  <img src={product.imageUrl} alt={product.name} />
-                </div>
-                <div className="product-info">
-                  <div className="product-meta">
-                    <span className="rating">★★★★★ <b>{product.rating}</b></span>
-                    <small>Resep Tradisional Fresh</small>
-                  </div>
-                  <h3 onClick={() => { setDetailProduct(product); setDetailSize("full"); setDetailQty(1); }} style={{ cursor: "pointer" }}>
-                    {product.name}
-                  </h3>
-                  <p>{product.description}</p>
-                  <div className="product-footer">
-                    <div>
-                      <strong>{money(product.price)}</strong>
-                      <small>{product.stock} stok tersedia</small>
+            {products.length === 0 ? (
+              /* Skeleton Loading Cards */
+              Array.from({ length: 3 }).map((_, i) => (
+                <div className="product-card skeleton-card" key={i} aria-hidden="true">
+                  <div className="skeleton-image" />
+                  <div className="product-info" style={{ gap: "10px", display: "flex", flexDirection: "column", padding: "16px" }}>
+                    <div className="skeleton-line" style={{ width: "40%", height: "10px" }} />
+                    <div className="skeleton-line" style={{ width: "75%", height: "16px" }} />
+                    <div className="skeleton-line" style={{ width: "90%", height: "10px" }} />
+                    <div className="skeleton-line" style={{ width: "90%", height: "10px" }} />
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "8px" }}>
+                      <div className="skeleton-line" style={{ width: "35%", height: "18px" }} />
+                      <div className="skeleton-circle" />
                     </div>
-                    <button
-                      className="add-button"
-                      onClick={() => { setDetailProduct(product); setDetailSize("full"); setDetailQty(1); }}
-                      title="Lihat Detail & Pilih Ukuran"
-                    >
-                      +
-                    </button>
                   </div>
                 </div>
-              </article>
-            ))}
+              ))
+            ) : (
+              filteredProducts.map((product) => (
+                <article className="product-card" key={product.id}>
+                  <div className="product-image" onClick={() => { setDetailProduct(product); setDetailSize("full"); setDetailQty(1); }} style={{ cursor: "pointer" }}>
+                    <span className="product-tag">{product.tag}</span>
+                    <img src={product.imageUrl} alt={product.name} />
+                  </div>
+                  <div className="product-info">
+                    <div className="product-meta">
+                      <span className="rating">★★★★★ <b>{product.rating}</b></span>
+                      <small>Resep Tradisional Fresh</small>
+                    </div>
+                    <h3 onClick={() => { setDetailProduct(product); setDetailSize("full"); setDetailQty(1); }} style={{ cursor: "pointer" }}>
+                      {product.name}
+                    </h3>
+                    <p>{product.description}</p>
+                    <div className="product-footer">
+                      <div>
+                        <strong>{money(product.price)}</strong>
+                        <small>{product.stock} stok tersedia</small>
+                      </div>
+                      <button
+                        className="add-button"
+                        onClick={() => { setDetailProduct(product); setDetailSize("full"); setDetailQty(1); }}
+                        title="Lihat Detail & Pilih Ukuran"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              ))
+            )}
           </div>
         </section>
 
@@ -549,14 +638,19 @@ export default function Storefront({
           ) : (
             cart.map((item) => (
               <div className="cart-line" key={item.id}>
-                <img src={item.imageUrl} alt="" />
-                <div>
+                <div className="cart-item-image-box">
+                  <img src={item.imageUrl} alt={item.name} />
+                </div>
+                <div className="cart-item-info">
                   <strong>{item.name}</strong>
                   <small>{money(item.price)}</small>
-                  <div className="quantity-control">
-                    <button onClick={() => changeQuantity(item.id, -1)}>−</button>
-                    <span>{item.quantity}</span>
-                    <button onClick={() => changeQuantity(item.id, 1)}>+</button>
+                  <div className="cart-item-bottom">
+                    <div className="quantity-control">
+                      <button onClick={() => changeQuantity(item.id, -1)}>−</button>
+                      <span>{item.quantity}</span>
+                      <button onClick={() => changeQuantity(item.id, 1)}>+</button>
+                    </div>
+                    <span className="cart-item-subtotal">{money(item.price * item.quantity)}</span>
                   </div>
                 </div>
               </div>
@@ -727,6 +821,49 @@ export default function Storefront({
                   </div>
                 </div>
               )}
+
+              {/* Delivery Date Picker */}
+              {(() => {
+                const todayDate = new Date();
+                todayDate.setHours(0, 0, 0, 0);
+                const minDate = new Date(todayDate);
+                minDate.setDate(minDate.getDate() + 2);
+                const minDateStr = minDate.toISOString().split("T")[0];
+                return (
+                  <div className="delivery-date-section">
+                    <div className="delivery-date-banner">
+                      <span className="delivery-date-icon">🗓️</span>
+                      <div>
+                        <strong>Pesanan minimal 2 hari sebelum pengiriman</strong>
+                        <small>Lapis legit kami dipanggang fresh setiap hari. Tanggal tersedia mulai <b>{minDate.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long" })}</b>.</small>
+                      </div>
+                    </div>
+                    <label style={{ marginTop: "10px" }}>
+                      <span className="delivery-date-label">Tanggal Pengiriman yang Diinginkan <span style={{ color: "#a05448" }}>*</span></span>
+                      <input
+                        type="date"
+                        min={minDateStr}
+                        value={checkout.deliveryDate}
+                        onChange={(e) => {
+                          setCheckout({ ...checkout, deliveryDate: e.target.value });
+                          setDeliveryDateError("");
+                        }}
+                        required
+                        className={deliveryDateError ? "input-error" : ""}
+                        style={{ width: "100%", boxSizing: "border-box" }}
+                      />
+                    </label>
+                    {checkout.deliveryDate && !deliveryDateError && (
+                      <div className="delivery-date-confirm">
+                        ✅ Estimasi tiba: <strong>{new Date(checkout.deliveryDate).toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</strong>
+                      </div>
+                    )}
+                    {deliveryDateError && (
+                      <div className="delivery-date-error">⚠️ {deliveryDateError}</div>
+                    )}
+                  </div>
+                );
+              })()}
 
               <label>
                 Catatan Pesanan (opsional)
