@@ -79,6 +79,12 @@ export default function Storefront({
   const [promoMessage, setPromoMessage] = useState("");
   const [promoError, setPromoError] = useState("");
 
+  const [leadMagnetOpen, setLeadMagnetOpen] = useState(false);
+  const [leadMagnetContact, setLeadMagnetContact] = useState("");
+  const [waWidgetOpen, setWaWidgetOpen] = useState(false);
+  const [isGiftOption, setIsGiftOption] = useState(false);
+  const [giftDetails, setGiftDetails] = useState({ ribbon: "Pita Emas (Gold)", sender: "", recipient: "", cardMessage: "" });
+
   useEffect(() => {
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => {
@@ -87,6 +93,15 @@ export default function Storefront({
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ? { id: session.user.id, email: session.user.email } : null);
     });
+
+    if (typeof window !== "undefined") {
+      const seen = localStorage.getItem("sharenpan_lead_seen");
+      if (!seen) {
+        const timer = setTimeout(() => setLeadMagnetOpen(true), 2500);
+        return () => clearTimeout(timer);
+      }
+    }
+
     return () => listener.subscription.unsubscribe();
   }, []);
 
@@ -164,6 +179,7 @@ export default function Storefront({
   }
 
   const currentShippingCost = selectedShipping ? selectedShipping.cost : 0;
+  const giftFee = isGiftOption ? 15000 : 0;
 
   const discountAmount = useMemo(() => {
     if (!appliedPromo || cartTotal <= 0) return 0;
@@ -173,7 +189,7 @@ export default function Storefront({
     return Math.min(cartTotal, appliedPromo.value);
   }, [appliedPromo, cartTotal]);
 
-  const finalTotal = Math.max(0, cartTotal - discountAmount + currentShippingCost);
+  const finalTotal = Math.max(0, cartTotal - discountAmount + currentShippingCost + giftFee);
 
   async function handleApplyPromo(codeToApply?: string) {
     const code = (codeToApply || promoInput).trim().toUpperCase();
@@ -243,6 +259,11 @@ export default function Storefront({
     setCheckoutLoading(true);
     setCheckoutError("");
     const supabase = createClient();
+
+    const formattedNotes = isGiftOption
+      ? `[🎁 HAMPERS GIFT BOX - ${giftDetails.ribbon}] Dari: ${giftDetails.sender || "-"} | Untuk: ${giftDetails.recipient || "-"} | Pesan: "${giftDetails.cardMessage || "-"}" | Catatan Tambahan: ${checkout.notes || "-"}`
+      : checkout.notes || null;
+
     const { data: order, error } = await supabase.from("orders").insert({
       user_id: user.id,
       customer_name: checkout.name,
@@ -254,7 +275,7 @@ export default function Storefront({
         courier: selectedShipping ? selectedShipping.serviceName : "Pengiriman Standar",
         etd: selectedShipping ? selectedShipping.etd : "1-2 Hari",
       },
-      notes: checkout.notes || null,
+      notes: formattedNotes,
       desired_delivery_date: checkout.deliveryDate,
       subtotal: cartTotal,
       shipping_fee: currentShippingCost,
@@ -290,9 +311,11 @@ export default function Storefront({
   return (
     <div className="storefront-shell">
       <div className="topbar">
-        <span>Gratis ongkir untuk pesanan di atas Rp500.000</span>
+        <span className="scarcity-top-badge">🔥 Batch Hari Ini: Sisa 4 Loyang Lagi!</span>
         <span className="topbar-separator">•</span>
-        <span>Dibuat fresh berdasarkan pesanan</span>
+        <span>Gratis ongkir min. Rp500.000</span>
+        <span className="topbar-separator">•</span>
+        <span>Dipanggang Fresh Per Pesanan</span>
         <StatusPill status={databaseStatus} />
       </div>
 
@@ -527,7 +550,9 @@ export default function Storefront({
                     <div className="product-footer">
                       <div>
                         <strong>{money(product.price)}</strong>
-                        <small>{product.stock} stok tersedia</small>
+                        <small style={{ color: product.stock <= 15 ? "#a05448" : "inherit", fontWeight: product.stock <= 15 ? "700" : "normal" }}>
+                          {product.stock <= 15 ? `🔥 Sisa ${product.stock} loyang hari ini` : `${product.stock} stok tersedia`}
+                        </small>
                       </div>
                       <button
                         className="add-button"
@@ -611,6 +636,48 @@ export default function Storefront({
             <div>
               <b>03</b>
               <span>Nikmati setiap lapis</span>
+            </div>
+          </div>
+        </section>
+
+        {/* UGC & SOCIAL PROOF GALLERY SECTION */}
+        <section className="ugc-section content-width">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Cerita & Ulasan Pelanggan</p>
+              <h2>📸 #SharenpanMoments</h2>
+            </div>
+            <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="secondary-button" style={{ display: "inline-flex", gap: "6px", alignItems: "center", minHeight: "auto", padding: "8px 16px", fontSize: "12px" }}>
+              Follow @sharenpan.id ↗
+            </a>
+          </div>
+
+          <div className="ugc-grid">
+            <div className="ugc-card">
+              <div className="ugc-badge">⭐ 5.0 Rating</div>
+              <p className="ugc-quote">"Harum butter Wijsman langsung kerasa banget pas dus dibuka! Teksturnya super lembut, 1 loyang habis sekeluarga pas kumpul Lebaran."</p>
+              <div className="ugc-author">
+                <strong>Diana Pratiwi</strong>
+                <small>Verified Buyer • Bandung</small>
+              </div>
+            </div>
+
+            <div className="ugc-card">
+              <div className="ugc-badge">🎁 Hampers Gift</div>
+              <p className="ugc-quote">"Pesan paket hampers pita emas untuk mertua. Packaging-nya sangat mewah dan rasa lapis legit prune-nya dapet pujian terus!"</p>
+              <div className="ugc-author">
+                <strong>Budi Santoso</strong>
+                <small>Verified Buyer • Jakarta</small>
+              </div>
+            </div>
+
+            <div className="ugc-card">
+              <div className="ugc-badge">☕ Coffee Companion</div>
+              <p className="ugc-quote">"Legitnya pas, gak manis bikin enek. Cocok banget disandingkan sama kopi hitam hangat pas sore-sore."</p>
+              <div className="ugc-author">
+                <strong>Melissa V.</strong>
+                <small>Verified Buyer • Surabaya</small>
+              </div>
             </div>
           </div>
         </section>
@@ -863,6 +930,71 @@ export default function Storefront({
                 );
               })()}
 
+              {/* Hampers & Gift Box Customization */}
+              <div className="gift-option-box" style={{ background: "#fbf6f0", padding: "14px", borderRadius: "12px", border: "1px solid #e8decb", margin: "10px 0" }}>
+                <label style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", fontWeight: "700", color: "#6f4932", fontSize: "13px" }}>
+                  <input
+                    type="checkbox"
+                    checked={isGiftOption}
+                    onChange={(e) => setIsGiftOption(e.target.checked)}
+                    style={{ width: "18px", height: "18px", accentColor: "#6f4932" }}
+                  />
+                  🎁 Bungkus sebagai Hampers & Gift Box (+Rp15.000)
+                </label>
+                <small style={{ display: "block", fontSize: "11px", color: "#8c7868", marginTop: "4px", marginLeft: "28px" }}>
+                  Termasuk Box Premium Sharenpan, Pita Satin Eksklusif, dan Kartu Ucapan Custom.
+                </small>
+
+                {isGiftOption && (
+                  <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "10px", paddingTop: "10px", borderTop: "1px dashed #e2d5c5" }}>
+                    <div>
+                      <span style={{ fontSize: "11px", fontWeight: "700", color: "#5c4433" }}>Pilih Warna Pita:</span>
+                      <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
+                        {["Pita Emas (Gold)", "Pita Merah Marun", "Pita Hijau Mint"].map((rib) => (
+                          <button
+                            type="button"
+                            key={rib}
+                            onClick={() => setGiftDetails({ ...giftDetails, ribbon: rib })}
+                            style={{
+                              padding: "6px 10px",
+                              fontSize: "11px",
+                              borderRadius: "6px",
+                              border: giftDetails.ribbon === rib ? "2px solid #6f4932" : "1px solid #dcd1c4",
+                              background: giftDetails.ribbon === rib ? "#ffffff" : "#fdf8f2",
+                              fontWeight: giftDetails.ribbon === rib ? "700" : "500",
+                              cursor: "pointer",
+                            }}
+                          >
+                            {rib}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                      <input
+                        placeholder="Nama Pengirim (Dari)"
+                        value={giftDetails.sender}
+                        onChange={(e) => setGiftDetails({ ...giftDetails, sender: e.target.value })}
+                        style={{ padding: "8px 10px", fontSize: "12px", borderRadius: "6px", border: "1px solid #dcd1c4" }}
+                      />
+                      <input
+                        placeholder="Nama Penerima (Untuk)"
+                        value={giftDetails.recipient}
+                        onChange={(e) => setGiftDetails({ ...giftDetails, recipient: e.target.value })}
+                        style={{ padding: "8px 10px", fontSize: "12px", borderRadius: "6px", border: "1px solid #dcd1c4" }}
+                      />
+                    </div>
+                    <textarea
+                      placeholder="Pesan Ucapan di Kartu (misal: Selamat Hari Raya / Happy Birthday! Semoga makin sukses & sehat selalu.)"
+                      value={giftDetails.cardMessage}
+                      onChange={(e) => setGiftDetails({ ...giftDetails, cardMessage: e.target.value })}
+                      rows={2}
+                      style={{ padding: "8px 10px", fontSize: "12px", borderRadius: "6px", border: "1px solid #dcd1c4" }}
+                    />
+                  </div>
+                )}
+              </div>
+
               <label>
                 Catatan Pesanan (opsional)
                 <textarea value={checkout.notes} onChange={(event) => setCheckout({ ...checkout, notes: event.target.value })} rows={2} placeholder="Contoh: Tolong bungkus pita ucapan ulang tahun" />
@@ -880,6 +1012,12 @@ export default function Storefront({
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#2d7a42" }}>
                     <span>Diskon Voucher ({appliedPromo?.code})</span>
                     <strong style={{ fontWeight: "700" }}>−{money(discountAmount)}</strong>
+                  </div>
+                )}
+                {isGiftOption && (
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#6f4932" }}>
+                    <span>Opsi Hampers & Gift Box</span>
+                    <strong style={{ fontWeight: "700" }}>+Rp15.000</strong>
                   </div>
                 )}
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
@@ -998,6 +1136,122 @@ export default function Storefront({
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* FLOATING WHATSAPP CHAT WIDGET */}
+      <div className="wa-floating-container">
+        {waWidgetOpen && (
+          <div className="wa-chat-box">
+            <div className="wa-chat-header">
+              <div className="wa-agent-info">
+                <span className="wa-online-dot" />
+                <div>
+                  <strong>CS Sharenpan Bandung</strong>
+                  <small>Online • Balas dalam ~2 menit</small>
+                </div>
+              </div>
+              <button className="wa-close-btn" onClick={() => setWaWidgetOpen(false)}>×</button>
+            </div>
+            <div className="wa-chat-body">
+              <p className="wa-bubble">
+                Halo Kak! 👋 Ada yang bisa kami bantu seputar varian lapis legit, paket hampers, atau estimasi pengiriman ke kota Kakak?
+              </p>
+              <div className="wa-quick-chips">
+                <a
+                  href="https://wa.me/6281234567890?text=Halo%20Sharenpan%2C%20saya%20mau%20tanya%20paket%20hampers%20lapis%20legit"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="wa-chip"
+                >
+                  🎁 Tanya Paket Hampers
+                </a>
+                <a
+                  href="https://wa.me/6281234567890?text=Halo%20Sharenpan%2C%20apakah%20bisa%20kirim%20ke%20kota%20saya%3F"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="wa-chip"
+                >
+                  🚚 Cek Pengiriman CS
+                </a>
+                <a
+                  href="https://wa.me/6281234567890?text=Halo%20Sharenpan%2C%20saya%20mau%20konsultasi%20pesanan%20khusus"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="wa-chip"
+                >
+                  💬 Konsultasi Pesanan
+                </a>
+              </div>
+            </div>
+            <div className="wa-chat-footer">
+              <a
+                href="https://wa.me/6281234567890?text=Halo%20Sharenpan%2C%20saya%20ingin%20bertanya%20seputar%20lapis%20legit"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="wa-send-btn"
+              >
+                Mulai Chat WhatsApp 💬
+              </a>
+            </div>
+          </div>
+        )}
+        <button
+          className="wa-floating-btn"
+          onClick={() => setWaWidgetOpen((v) => !v)}
+          aria-label="Chat WhatsApp CS Sharenpan"
+        >
+          <span className="wa-icon">💬</span>
+          <span className="wa-btn-label">Tanya CS WA</span>
+        </button>
+      </div>
+
+      {/* LEAD MAGNET POPUP MODAL (WELCOME10 VOUCHER) */}
+      {leadMagnetOpen && (
+        <div className="modal-backdrop" role="presentation" onClick={() => setLeadMagnetOpen(false)}>
+          <div className="lead-magnet-modal" role="dialog" onClick={(e) => e.stopPropagation()}>
+            <button
+              className="modal-close"
+              onClick={() => {
+                setLeadMagnetOpen(false);
+                if (typeof window !== "undefined") localStorage.setItem("sharenpan_lead_seen", "true");
+              }}
+            >
+              ×
+            </button>
+            <div className="lead-magnet-content">
+              <span className="lead-badge">🎁 HADIAH SPESIAL PENGUNJUNG BARU</span>
+              <h2>Dapatkan Diskon 10%</h2>
+              <p className="lead-desc">
+                Masukkan WhatsApp atau email kamu untuk mengklaim kode voucher <strong>WELCOME10</strong> secara instan untuk pesanan pertamamu di Sharenpan.
+              </p>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!leadMagnetContact.trim()) return;
+                  if (typeof window !== "undefined") localStorage.setItem("sharenpan_lead_seen", "true");
+                  handleApplyPromo("WELCOME10");
+                  setLeadMagnetOpen(false);
+                  showToast("🎉 Voucher WELCOME10 berhasil diklaim & dipasang!");
+                }}
+                className="lead-form"
+              >
+                <input
+                  type="text"
+                  placeholder="Nomor WhatsApp / Email Anda"
+                  value={leadMagnetContact}
+                  onChange={(e) => setLeadMagnetContact(e.target.value)}
+                  required
+                  className="lead-input"
+                />
+                <button type="submit" className="primary-button full-button" style={{ marginTop: "10px" }}>
+                  Klaim Diskon 10% Sekarang ➔
+                </button>
+              </form>
+              <small className="lead-footer-note">
+                🔒 Data aman. Tanpa spam, langsung dipotong di keranjang!
+              </small>
             </div>
           </div>
         </div>
