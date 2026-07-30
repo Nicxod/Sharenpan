@@ -309,9 +309,12 @@ export default function Storefront({
           <a href="#produk">Produk</a>
           <a href="#cerita">Tentang kami</a>
           <a href="#cara-order">Cara order</a>
+          <a href="/lacak" className="nav-pesanan-highlight">
+            📦 Lacak Pesanan
+          </a>
           {user && (
-            <a href="/customer" className="nav-pesanan-highlight">
-              📦 Pesanan
+            <a href="/customer">
+              👤 Dashboard
             </a>
           )}
         </nav>
@@ -381,7 +384,7 @@ export default function Storefront({
               <a href="#produk" onClick={() => setMobileMenuOpen(false)}>🎂 Produk</a>
               <a href="#cerita" onClick={() => setMobileMenuOpen(false)}>💬 Tentang kami</a>
               <a href="#cara-order" onClick={() => setMobileMenuOpen(false)}>📋 Cara order</a>
-              {user && <a href="/customer" className="nav-pesanan-highlight" style={{ display: "flex" }}>📦 Lacak Pesanan</a>}
+              <a href="/lacak" className="nav-pesanan-highlight" style={{ display: "flex" }} onClick={() => setMobileMenuOpen(false)}>📦 Lacak Pesanan</a>
             </div>
             <div className="mobile-menu-footer">
               {user ? (

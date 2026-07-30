@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 type TrackingStatus =
@@ -113,19 +114,19 @@ export default function OrderTracker() {
 
       {/* Navbar */}
       <header className="navbar">
-        <a className="brand" href="/" aria-label="Sharenpan home">
+        <Link className="brand" href="/" aria-label="Sharenpan home">
           <img src="/assets/logo.png" alt="Sharenpan Logo" className="brand-logo-img" />
           <span>
             sharenpan
             <small>lapis legit premium</small>
           </span>
-        </a>
+        </Link>
         <nav className="desktop-nav" aria-label="Navigasi utama">
-          <a href="/">Home</a>
-          <a href="/#produk">Produk</a>
-          <a href="/#cerita">Tentang kami</a>
-          <a href="/#cara-order">Cara order</a>
-          <a href="/lacak" className="nav-pesanan-highlight">📦 Lacak Pesanan</a>
+          <Link href="/">Home</Link>
+          <Link href="/#produk">Produk</Link>
+          <Link href="/#cerita">Tentang kami</Link>
+          <Link href="/#cara-order">Cara order</Link>
+          <Link href="/lacak" className="nav-pesanan-highlight">📦 Lacak Pesanan</Link>
         </nav>
       </header>
 
@@ -167,9 +168,9 @@ export default function OrderTracker() {
             <div className="tracker-not-found-icon">🔍</div>
             <h3>Pesanan tidak ditemukan</h3>
             <p>{error}</p>
-            <a href="/" className="secondary-button" style={{ display: "inline-flex", marginTop: "12px" }}>
+            <Link href="/" className="secondary-button" style={{ display: "inline-flex", marginTop: "12px" }}>
               Kembali ke Toko
-            </a>
+            </Link>
           </div>
         )}
 
@@ -311,7 +312,7 @@ export default function OrderTracker() {
 
             {/* CTA */}
             <div className="tracker-cta">
-              <a href="/" className="primary-button">Pesan Lagi <span>→</span></a>
+              <Link href="/" className="primary-button">Pesan Lagi <span>→</span></Link>
               <button
                 className="secondary-button"
                 onClick={() => { setResult(null); setQuery(""); setSearched(false); }}

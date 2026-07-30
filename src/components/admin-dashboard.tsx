@@ -149,7 +149,7 @@ export default function AdminDashboard({ initialData }: { initialData: AdminData
                   </div>
                   <small style={{ color: "#928072" }}>{fb.customer_email || "Email tidak terdaftar"} • {date(fb.created_at)}</small>
                   <p style={{ margin: "6px 0 0", fontSize: "13px", color: "#33251d", background: "#fcf9f5", padding: "10px", borderRadius: "8px", width: "100%", border: "1px solid #efe4d7" }}>
-                    "{fb.message}"
+                    &quot;{fb.message}&quot;
                   </p>
                 </div>
               ))
