@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import PaymentGatewayModal from "@/components/payment-gateway-modal";
@@ -114,7 +114,11 @@ function getTimelineSteps(status: string, paymentStatus: string, createdAt: stri
 
 export default function CustomerDashboard({ initialData }: { initialData: CustomerData }) {
   const [data, setData] = useState(initialData);
-  const [activeTab, setActiveTab] = useState<TabType>("overview");
+  const [activeTab, setActiveTab] = useState<TabType>(() => {
+    if (typeof window === "undefined") return "overview";
+    const tab = new URLSearchParams(window.location.search).get("tab");
+    return tab === "profile" || tab === "orders" || tab === "overview" ? tab : "overview";
+  });
   const [selectedOrderForPay, setSelectedOrderForPay] = useState<CustomerOrder | null>(null);
   const [selectedOrderForDetail, setSelectedOrderForDetail] = useState<CustomerOrder | null>(null);
   const [selectedOrderForFeedback, setSelectedOrderForFeedback] = useState<CustomerOrder | null>(null);
@@ -123,16 +127,6 @@ export default function CustomerDashboard({ initialData }: { initialData: Custom
   const [feedbackSuccess, setFeedbackSuccess] = useState("");
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const tabParam = params.get("tab");
-      if (tabParam === "profile" || tabParam === "orders" || tabParam === "overview") {
-        setActiveTab(tabParam as TabType);
-      }
-    }
-  }, []);
 
   async function signOut() {
     await createClient().auth.signOut();
