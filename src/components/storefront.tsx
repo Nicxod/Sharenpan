@@ -789,30 +789,30 @@ export default function Storefront({
               </div>
             </article>
 
-            {/* Card 2: Edisi Gift Box & Custom Ribbon */}
+            {/* Card 2: Edisi Lebaran / Idul Fitri (Eid Mubarak) */}
             <article className="hampers-card-item">
               <div className="hampers-media-frame">
-                <span className="hampers-badge-pill gold">🎁 Gift Box & Pita Emas</span>
+                <span className="hampers-badge-pill gold">🌙 Edisi Lebaran (Eid Mubarak)</span>
                 <video autoPlay muted loop playsInline controls preload="metadata" className="hampers-card-video">
                   <source src="/assets/special-edition-lebaran.mp4" type="video/mp4" />
                 </video>
               </div>
               <div className="hampers-card-body">
-                <h3>Gift Box & Custom Ribbon</h3>
+                <h3>Hampers Edisi Lebaran</h3>
                 <p>
-                  Paket hantaran serbaguna dengan ikatan pita emas mewah dan kartu ucapan personal yang dapat di-custom untuk momen spesial Anda.
+                  Kemasan hampers eksklusif Idul Fitri bernuansa floral & kubah "Eid Mubarak" dengan pisau kue spesial, pas untuk hantaran kerabat.
                 </p>
                 <div className="hampers-feature-list">
-                  <span>🎀 Custom Pita Emas & Stiker Nama</span>
-                  <span>💌 Kartu Ucapan Personal</span>
-                  <span>🚚 Pengiriman Safe-Pack Bergaransi</span>
+                  <span>🌙 Design Box Eksklusif Eid Mubarak</span>
+                  <span>💌 Kartu Ucapan Idul Fitri Personal</span>
+                  <span>🧈 Pilihan Varian Original / Plum</span>
                 </div>
                 <button
                   className="primary-button"
                   style={{ marginTop: "auto", width: "100%", justifyContent: "center" }}
                   onClick={() => setCartOpen(true)}
                 >
-                  Pesan Gift Box <span>→</span>
+                  Pesan Hampers Lebaran <span>→</span>
                 </button>
               </div>
             </article>
