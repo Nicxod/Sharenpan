@@ -9,12 +9,12 @@ export const dynamic = "force-dynamic";
 const fallbackProducts: StorefrontProduct[] = [
   // ── KATEGORI 1: LAPIS LEGIT ORIGINAL ──
   {
-    id: "lapis-ori-half",
-    name: "Lapis Legit Original (1/2 Loyang)",
-    description: "Lapis legit original dipotong setengah loyang (10×20 cm). Dibuat dengan 100% Wijsman butter asli, lembut dan harum.",
-    price: 150000,
-    stock: 24,
-    imageUrl: "/assets/products/lapis-ori-half.jpg",
+    id: "lapis-ori-block",
+    name: "Lapis Legit Original Premium (Full Block)",
+    description: "Lapis legit original resep warisan dipanggang selapis demi selapis dengan 100% butter Wijsman murni. Lembut, gurih, dan legit.",
+    price: 285000,
+    stock: 20,
+    imageUrl: "/assets/products/lapis-ori-block.jpg",
     tag: "Terlaris",
     type: "classic",
     categorySlug: "lapis-original",
@@ -23,25 +23,53 @@ const fallbackProducts: StorefrontProduct[] = [
     reviews: "248",
   },
   {
-    id: "lapis-ori-slice",
-    name: "Lapis Legit Original (Slice Individual)",
-    description: "Lapis legit original dipotong kecil-kecil dan dikemas rapi per slice. Praktis untuk konsumsi harian dan sajian acara.",
-    price: 35000,
-    stock: 45,
-    imageUrl: "/assets/products/lapis-slice-packs.jpg",
+    id: "lapis-ori-box-half",
+    name: "Lapis Legit Original (Dus Reguler 1/2 Loyang)",
+    description: "Kemasan dus kraft reguler setengah loyang (10×20 cm) dengan jendela transparan + gratis pisau kue. Pilihan praktis harian.",
+    price: 150000,
+    stock: 25,
+    imageUrl: "/assets/products/lapis-ori-box-half.jpg",
+    tag: "Favorit",
+    type: "classic",
+    categorySlug: "lapis-original",
+    categoryName: "Lapis Legit Original",
+    rating: "4.9",
+    reviews: "194",
+  },
+  {
+    id: "lapis-ori-box-cubes",
+    name: "Lapis Legit Original (Box Cut Bites / Potong Rapi)",
+    description: "Lapis legit original yang sudah dipotong-potong kecil rapi dalam box transparan. Siap disantap bersama keluarga tanpa repot.",
+    price: 160000,
+    stock: 30,
+    imageUrl: "/assets/products/lapis-ori-box-cubes.jpg",
     tag: "Praktis",
     type: "classic",
     categorySlug: "lapis-original",
     categoryName: "Lapis Legit Original",
     rating: "4.9",
-    reviews: "182",
+    reviews: "176",
+  },
+  {
+    id: "lapis-ori-slice",
+    name: "Lapis Legit Original (Slice Individual Pack)",
+    description: "Potongan slice individual dikemas plastik stiker Sharenpan. Sangat praktis untuk camilan harian dan souvenir acara.",
+    price: 35000,
+    stock: 45,
+    imageUrl: "/assets/products/lapis-slice-packs.jpg",
+    tag: "Mini Pack",
+    type: "classic",
+    categorySlug: "lapis-original",
+    categoryName: "Lapis Legit Original",
+    rating: "4.8",
+    reviews: "128",
   },
 
   // ── KATEGORI 2: LAPIS LEGIT VARIAN BUAH PLUM ──
   {
     id: "lapis-plum-full",
     name: "Lapis Legit Varian Buah Plum (1 Loyang Full)",
-    description: "Lapis legit varian buah plum 1 loyang utuh (20×20 cm). Rasa manis legit dipadu segarnya buah plum asli berkualitas.",
+    description: "Lapis legit varian buah plum 1 loyang utuh (20×20 cm). Rasa manis asam segar buah plum asli menyatu dalam kelembutan lapis legit.",
     price: 325000,
     stock: 12,
     imageUrl: "/assets/products/lapis-plum-full.jpg",
@@ -92,8 +120,10 @@ function resolveRealProductImage(name: string, rawUrl?: string | null): string {
     if (n.includes("side") || n.includes("samping") || n.includes("layer")) return "/assets/products/lapis-plum-side.jpg";
     return "/assets/products/lapis-plum-full.jpg";
   }
-  if (n.includes("slice") || n.includes("kecil") || n.includes("pack")) return "/assets/products/lapis-slice-packs.jpg";
-  return "/assets/products/lapis-ori-half.jpg";
+  if (n.includes("box") || n.includes("dus") || n.includes("half") || n.includes("1/2")) return "/assets/products/lapis-ori-box-half.jpg";
+  if (n.includes("cut") || n.includes("bite") || n.includes("potong")) return "/assets/products/lapis-ori-box-cubes.jpg";
+  if (n.includes("slice") || n.includes("pack")) return "/assets/products/lapis-slice-packs.jpg";
+  return "/assets/products/lapis-ori-block.jpg";
 }
 
 export default async function Home() {

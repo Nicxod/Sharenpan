@@ -746,25 +746,76 @@ export default function Storefront({
           </div>
         </section>
 
-        {/* 6 ── SPECIAL EDITION HAMPERS */}
-        <section className="special-edition content-width">
-          <div className="special-video">
-            <video autoPlay muted loop playsInline controls preload="metadata">
-              <source src="/assets/special-edition-lebaran.mp4" type="video/mp4" />
-            </video>
-          </div>
-          <div className="special-copy">
-            <p className="eyebrow">Special Edition Hampers</p>
-            <h2>Momen Manis <em>Bersama Keluarga.</em></h2>
-            <p>Hadirkan kehangatan lapis legit premium Sharenpan di setiap perayaan hari raya & momen spesial bersama orang tercinta.</p>
-            <div className="special-details">
-              <span><b>100%</b> Real Butter Wijsman</span>
-              <span><b>Fresh</b> Baked Daily</span>
-              <span><b>Custom</b> Gift Card & Ribbon</span>
+        {/* 6 ── SPECIAL EDITION HAMPERS (2 CARDS) */}
+        <section className="special-hampers-section content-width" id="hampers">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Pilihan Hampers & Event</p>
+              <h2>
+                Koleksi Hampers <em>Spesial Perayaan.</em>
+              </h2>
             </div>
-            <button className="primary-button" onClick={() => setCartOpen(true)}>
-              Pesan Hampers Sekarang <span>→</span>
-            </button>
+            <span className="section-count">2 Pilihan Hampers</span>
+          </div>
+
+          <div className="hampers-grid-container">
+            {/* Card 1: Edisi Imlek / Chinese New Year Event */}
+            <article className="hampers-card-item">
+              <div className="hampers-media-frame">
+                <span className="hampers-badge-pill">🧧 Edisi Imlek & Hari Raya</span>
+                <img
+                  src="/assets/hampers/hampers-imlek.jpg"
+                  alt="Hampers Lapis Legit Edisi Imlek Chinese New Year Sharenpan"
+                  className="hampers-card-img"
+                />
+              </div>
+              <div className="hampers-card-body">
+                <h3>Hampers Edisi Imlek & Perayaan</h3>
+                <p>
+                  Kemasan khusus hantaran dengan selongsong & kartu ucapan "Happy Chinese New Year" berwarna merah hangat bernuansa mewah.
+                </p>
+                <div className="hampers-feature-list">
+                  <span>🧧 Kartu Ucapan & Stiker Tematik</span>
+                  <span>✨ Kemasan Dus Spesial Event</span>
+                  <span>🧈 Pilihan Varian Original / Plum</span>
+                </div>
+                <button
+                  className="primary-button"
+                  style={{ marginTop: "auto", width: "100%", justifyContent: "center" }}
+                  onClick={() => setCartOpen(true)}
+                >
+                  Pesan Hampers Imlek <span>→</span>
+                </button>
+              </div>
+            </article>
+
+            {/* Card 2: Edisi Gift Box & Custom Ribbon */}
+            <article className="hampers-card-item">
+              <div className="hampers-media-frame">
+                <span className="hampers-badge-pill gold">🎁 Gift Box & Pita Emas</span>
+                <video autoPlay muted loop playsInline controls preload="metadata" className="hampers-card-video">
+                  <source src="/assets/special-edition-lebaran.mp4" type="video/mp4" />
+                </video>
+              </div>
+              <div className="hampers-card-body">
+                <h3>Gift Box & Custom Ribbon</h3>
+                <p>
+                  Paket hantaran serbaguna dengan ikatan pita emas mewah dan kartu ucapan personal yang dapat di-custom untuk momen spesial Anda.
+                </p>
+                <div className="hampers-feature-list">
+                  <span>🎀 Custom Pita Emas & Stiker Nama</span>
+                  <span>💌 Kartu Ucapan Personal</span>
+                  <span>🚚 Pengiriman Safe-Pack Bergaransi</span>
+                </div>
+                <button
+                  className="primary-button"
+                  style={{ marginTop: "auto", width: "100%", justifyContent: "center" }}
+                  onClick={() => setCartOpen(true)}
+                >
+                  Pesan Gift Box <span>→</span>
+                </button>
+              </div>
+            </article>
           </div>
         </section>
 
