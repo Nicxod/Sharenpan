@@ -950,22 +950,20 @@ h1 em, h2 em { color: var(--gold); font-style: italic; }
 .detail-image-box {
   position: relative;
   width: 100%;
-  aspect-ratio: 4 / 3;
   border-radius: 18px;
   overflow: hidden;
   border: 1px solid #ebd9c8;
-  background: #211610;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: #1a120d;
 }
 
 .detail-image-box img {
-  width: 100% !important;
-  height: 100% !important;
-  object-fit: contain !important;
-  object-position: center !important;
-  background: #211610;
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 420px;
+  object-fit: contain;
+  object-position: center;
+  background: #1a120d;
 }
 
 .detail-info-box h2 {
@@ -3414,12 +3412,6 @@ h1 em, h2 em { color: var(--gold); font-style: italic; }
 /* ============================================================
    PRODUCT DETAIL MODAL — CAROUSEL & THUMBNAILS
    ============================================================ */
-.detail-image-column {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
 
 
 .carousel-arrow {
