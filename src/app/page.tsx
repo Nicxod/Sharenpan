@@ -116,10 +116,12 @@ function resolveRealProductImage(name: string, rawUrl?: string | null): string {
   }
   const n = name.toLowerCase();
   if (n.includes("plum") || n.includes("prune")) {
+    if (n.includes("half") || n.includes("1/2")) return "/assets/products/lapis-plum-half.jpg";
     if (n.includes("quarter") || n.includes("1/4")) return "/assets/products/lapis-plum-quarter.jpg";
     if (n.includes("side") || n.includes("samping") || n.includes("layer")) return "/assets/products/lapis-plum-side.jpg";
     return "/assets/products/lapis-plum-full.jpg";
   }
+  if (n.includes("quarter") || n.includes("1/4")) return "/assets/products/lapis-ori-quarter.jpg";
   if (n.includes("box") || n.includes("dus") || n.includes("half") || n.includes("1/2")) return "/assets/products/lapis-ori-box-half.jpg";
   if (n.includes("cut") || n.includes("bite") || n.includes("potong")) return "/assets/products/lapis-ori-box-cubes.jpg";
   if (n.includes("slice") || n.includes("pack")) return "/assets/products/lapis-slice-packs.jpg";

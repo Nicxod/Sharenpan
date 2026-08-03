@@ -57,6 +57,7 @@ function getProductGallery(product: StorefrontProduct) {
   if (isPlum) {
     return [
       { url: "/assets/products/lapis-plum-full.jpg", label: "Full Loyang (20 × 20 cm)" },
+      { url: "/assets/products/lapis-plum-half.jpg", label: "Half Size (10 × 20 cm)" },
       { url: "/assets/products/lapis-plum-quarter.jpg", label: "1/4 Loyang (10 × 10 cm)" },
       { url: "/assets/products/lapis-plum-side.jpg", label: "Tampak Samping (Layer View)" },
     ];
@@ -65,6 +66,7 @@ function getProductGallery(product: StorefrontProduct) {
   return [
     { url: "/assets/products/lapis-ori-block.jpg", label: "Full Block (20 × 20 cm)" },
     { url: "/assets/products/lapis-ori-box-half.jpg", label: "Half Size Dus Reguler (10 × 20 cm)" },
+    { url: "/assets/products/lapis-ori-quarter.jpg", label: "1/4 Size (10 × 10 cm)" },
     { url: "/assets/products/lapis-ori-box-cubes.jpg", label: "Potongan Box Bite-Size" },
     { url: "/assets/products/lapis-slice-packs.jpg", label: "Kemasan Slice Individual" },
     { url: "/assets/products/lapis-ori-half.jpg", label: "Potongan Setengah Loyang" },
@@ -91,7 +93,7 @@ export default function Storefront({
   const [checkout, setCheckout] = useState({ name: "", phone: "", address: "", city: "", notes: "", deliveryDate: "" });
   const [deliveryDateError, setDeliveryDateError] = useState("");
   const [detailProduct, setDetailProduct] = useState<StorefrontProduct | null>(null);
-  const [detailSize, setDetailSize] = useState<"full" | "half">("full");
+  const [detailSize, setDetailSize] = useState<"full" | "half" | "quarter">("full");
   const [detailQty, setDetailQty] = useState(1);
   const [detailImageIndex, setDetailImageIndex] = useState(0);
 
@@ -1382,6 +1384,17 @@ export default function Storefront({
                         <strong>Half Size (10 × 20 cm)</strong>
                         <small>Berat ~500g • {money(Math.round(detailProduct.price * 0.55))}</small>
                       </button>
+                      <button
+                        type="button"
+                        className={`size-btn ${detailSize === "quarter" ? "selected" : ""}`}
+                        onClick={() => {
+                          setDetailSize("quarter");
+                          setDetailImageIndex(2);
+                        }}
+                      >
+                        <strong>1/4 Size (10 × 10 cm)</strong>
+                        <small>Berat ~250g • {money(Math.round(detailProduct.price * 0.35))}</small>
+                      </button>
                     </div>
                   </div>
 
@@ -1401,7 +1414,15 @@ export default function Storefront({
                 <div className="detail-action-row">
                   <div className="detail-price-tag">
                     <span>Total:</span>
-                    <strong>{money((detailSize === "full" ? detailProduct.price : Math.round(detailProduct.price * 0.55)) * detailQty)}</strong>
+                    <strong>
+                      {money(
+                        (detailSize === "full"
+                          ? detailProduct.price
+                          : detailSize === "half"
+                            ? Math.round(detailProduct.price * 0.55)
+                            : Math.round(detailProduct.price * 0.35)) * detailQty
+                      )}
+                    </strong>
                   </div>
 
                   <div className="detail-qty-control">
@@ -1413,8 +1434,18 @@ export default function Storefront({
                   <button
                     className="primary-button"
                     onClick={() => {
-                      const itemPrice = detailSize === "full" ? detailProduct.price : Math.round(detailProduct.price * 0.55);
-                      const sizeLabel = detailSize === "full" ? "20x20 cm" : "10x20 cm";
+                      const itemPrice =
+                        detailSize === "full"
+                          ? detailProduct.price
+                          : detailSize === "half"
+                            ? Math.round(detailProduct.price * 0.55)
+                            : Math.round(detailProduct.price * 0.35);
+                      const sizeLabel =
+                        detailSize === "full"
+                          ? "20x20 cm"
+                          : detailSize === "half"
+                            ? "10x20 cm"
+                            : "10x10 cm";
                       for (let i = 0; i < detailQty; i++) {
                         addToCart({
                           ...detailProduct,
