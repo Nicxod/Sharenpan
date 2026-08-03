@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 type Product = { id: string; name: string; slug: string; price: number; stock: number; status: string; image_url: string | null; created_at: string };
-type Order = { id: string; order_number: string; customer_name: string; customer_email: string | null; customer_phone: string; total: number; status: string; payment_status: string; created_at: string };
+type Order = { id: string; order_number: string; customer_name: string; customer_email: string | null; customer_phone: string; total: number; status: string; payment_status: string; payment_receipt_url: string | null; created_at: string };
 type OrderItem = { product_id: string | null; product_name: string; quantity: number; subtotal: number };
 type Customer = { id: string; full_name: string | null; phone: string | null; role: string; created_at: string };
 type FeedbackItem = { id: string; order_id: string | null; customer_name: string; customer_email: string | null; rating_score: number; message: string; created_at: string };
@@ -16,7 +16,7 @@ type OrderChanges = { status?: string; payment_status?: string };
 const money = (value: number) => `Rp${value.toLocaleString("id-ID")}`;
 const date = (value: string) => new Date(value).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
 const statusLabels: Record<string, string> = { pending: "Menunggu", confirmed: "Dikonfirmasi", processing: "Diproses", shipped: "Dikirim", completed: "Selesai", cancelled: "Dibatalkan" };
-const paymentLabels: Record<string, string> = { unpaid: "Belum dibayar", pending: "Menunggu", paid: "Dibayar", failed: "Gagal", refunded: "Dikembalikan" };
+const paymentLabels: Record<string, string> = { unpaid: "Belum dibayar", pending: "Menunggu", pending_verification: "Verifikasi Bukti", paid: "Dibayar", failed: "Gagal", refunded: "Dikembalikan" };
 const navItems: Array<[Section, string, string]> = [["overview", "Overview", "▦"], ["orders", "Pesanan", "▤"], ["products", "Produk", "◫"], ["customers", "Pelanggan", "♙"], ["feedback", "Feedback", "💬"], ["reports", "Laporan", "◌"]];
 
 
@@ -176,4 +176,54 @@ function ProductsSection({ products, productForm, setProductForm, imagePreview, 
 function ReportsSection({ orders, chartData, chartPoints, chartMax, reportRange, setReportRange, revenue, onUpdateOrder }: { orders: Order[]; chartData: Array<{ label: string; value: number }>; chartPoints: string; chartMax: number; reportRange: 7 | 30 | 0; setReportRange: (value: 7 | 30 | 0) => void; revenue: number; onUpdateOrder: (id: string, changes: OrderChanges) => void }) { return <section className="admin-panel full-panel"><div className="panel-heading"><div><h2>Laporan penjualan</h2><p>Ringkasan transaksi dan performa penjualan</p></div><select className="filter-select" value={reportRange} onChange={(event) => setReportRange(Number(event.target.value) as 7 | 30 | 0)}><option value="7">7 hari terakhir</option><option value="30">30 hari terakhir</option><option value="0">Semua data</option></select></div><div className="report-cards"><div><span>Transaksi dibayar</span><strong>{orders.filter((order) => order.payment_status === "paid").length}</strong></div><div><span>Nilai penjualan</span><strong>{money(revenue)}</strong></div><div><span>Rata-rata order</span><strong>{money(orders.length ? Math.round(revenue / Math.max(orders.filter((order) => order.payment_status === "paid").length, 1)) : 0)}</strong></div></div><SalesChart data={chartData} points={chartPoints} max={chartMax} /><div className="report-table"><h3>Rincian order</h3><OrderTable orders={orders} onUpdate={onUpdateOrder} /></div></section>; }
 
 function Stat({ label, value, note, icon, tone }: { label: string; value: string; note: string; icon: string; tone: string }) { return <div className="stat-card"><div><span>{label}</span><strong>{value}</strong><small>{note}</small></div><i className={`stat-icon ${tone}`}>{icon}</i></div>; }
-function OrderTable({ orders, onUpdate }: { orders: Order[]; onUpdate: (id: string, changes: OrderChanges) => void }) { return <div className="order-table">{orders.length === 0 ? <div className="empty-table">Belum ada pesanan tercatat.</div> : <><div className="order-table-head"><span>Invoice</span><span>Customer</span><span>Total</span><span>Status order</span><span>Pembayaran</span></div>{orders.map((order) => <div className="order-table-row" key={order.id}><span><strong>#{order.order_number}</strong><small>{date(order.created_at)}</small></span><span>{order.customer_name}<small>{order.customer_phone}</small></span><span>{money(order.total)}</span><select value={order.status} onChange={(event) => onUpdate(order.id, { status: event.target.value })}>{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><select value={order.payment_status} onChange={(event) => onUpdate(order.id, { payment_status: event.target.value })}>{Object.entries(paymentLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>)}</>}</div>; }
+
+function OrderTable({ orders, onUpdate }: { orders: Order[]; onUpdate: (id: string, changes: OrderChanges) => void }) {
+  const [reviewOrder, setReviewOrder] = useState<Order | null>(null);
+  
+  return (
+    <div className="order-table">
+      {orders.length === 0 ? <div className="empty-table">Belum ada pesanan tercatat.</div> : (
+        <>
+          <div className="order-table-head"><span>Invoice</span><span>Customer</span><span>Total</span><span>Status order</span><span>Pembayaran</span></div>
+          {orders.map((order) => (
+            <div className="order-table-row" key={order.id}>
+              <span><strong>#{order.order_number}</strong><small>{date(order.created_at)}</small></span>
+              <span>{order.customer_name}<small>{order.customer_phone}</small></span>
+              <span>{money(order.total)}</span>
+              <select value={order.status} onChange={(event) => onUpdate(order.id, { status: event.target.value })}>{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+              <div style={{ display: "flex", gap: "8px", flexDirection: "column" }}>
+                <select value={order.payment_status} onChange={(event) => onUpdate(order.id, { payment_status: event.target.value })}>{Object.entries(paymentLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+                {order.payment_status === "pending_verification" && order.payment_receipt_url && (
+                  <button onClick={() => setReviewOrder(order)} style={{ background: "#4caf50", color: "#fff", border: "none", borderRadius: "4px", padding: "4px 8px", cursor: "pointer", fontSize: "11px", fontWeight: "bold" }}>Cek Bukti</button>
+                )}
+              </div>
+            </div>
+          ))}
+        </>
+      )}
+      {reviewOrder && (
+        <div className="modal-backdrop" onClick={() => setReviewOrder(null)}>
+          <div className="payment-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: "450px" }}>
+            <div className="payment-modal-header" style={{ paddingBottom: "12px", borderBottom: "1px solid var(--line)", marginBottom: "16px" }}>
+              <h2>Bukti Pembayaran #{reviewOrder.order_number}</h2>
+              <p>Total tagihan: <strong>{money(reviewOrder.total)}</strong></p>
+            </div>
+            <div style={{ textAlign: "center", marginBottom: "20px" }}>
+              {reviewOrder.payment_receipt_url ? (
+                <a href={reviewOrder.payment_receipt_url} target="_blank" rel="noreferrer">
+                  <img src={reviewOrder.payment_receipt_url} alt="Bukti Transfer" style={{ maxWidth: "100%", maxHeight: "350px", border: "1px solid var(--line)", borderRadius: "8px" }} />
+                </a>
+              ) : (
+                <p>Tidak ada foto bukti.</p>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
+              <button style={{ padding: "8px 16px", background: "#fef1f2", color: "#c13515", border: "1px solid #fcd4d7", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" }} onClick={() => { onUpdate(reviewOrder.id, { payment_status: "failed" }); setReviewOrder(null); }}>Tolak (Tidak Valid)</button>
+              <button style={{ padding: "8px 16px", background: "#4caf50", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" }} onClick={() => { onUpdate(reviewOrder.id, { payment_status: "paid", status: "confirmed" }); setReviewOrder(null); }}>Terima (Valid)</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

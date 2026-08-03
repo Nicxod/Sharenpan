@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import AuthModal from "@/components/auth-modal";
-import PaymentGatewayModal from "@/components/payment-gateway-modal";
+import PaymentUploadModal from "@/components/payment-upload-modal";
 
 export type StorefrontProduct = {
   id: string;
@@ -1272,14 +1272,16 @@ export default function Storefront({
         </div>
       )}
       {paymentGatewayOrder && (
-        <PaymentGatewayModal
+        <PaymentUploadModal
           orderId={paymentGatewayOrder.id}
           orderNumber={paymentGatewayOrder.number}
           totalAmount={paymentGatewayOrder.total}
           onClose={() => setPaymentGatewayOrder(null)}
           onSuccess={() => {
             setPaymentGatewayOrder(null);
-            showToast("Pembayaran berhasil dikonfirmasi! Pesanan Anda diproses.");
+            showToast("Pembayaran berhasil diverifikasi!");
+            setCart([]);
+            setAuthOpen(false);
           }}
         />
       )}
