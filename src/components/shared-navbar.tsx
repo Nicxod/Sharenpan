@@ -45,7 +45,6 @@ export default function SharedNavbar({
   }
 
   const isLacak    = pathname === "/lacak";
-  const isCustomer = pathname?.startsWith("/customer");
 
   return (
     <>
@@ -61,9 +60,11 @@ export default function SharedNavbar({
           </>
         ) : (
           <>
-            <span>Gratis ongkir untuk pesanan di atas Rp500.000</span>
+            <span className="scarcity-top-badge">🔥 Batch Hari Ini: Sisa 4 Loyang Lagi!</span>
             <span className="topbar-separator">•</span>
-            <span>Dibuat fresh berdasarkan pesanan</span>
+            <span>Gratis ongkir min. Rp500.000</span>
+            <span className="topbar-separator">•</span>
+            <span>Dipanggang Fresh Per Pesanan</span>
           </>
         )}
       </div>
@@ -79,7 +80,7 @@ export default function SharedNavbar({
           <img src="/assets/logo.png" alt="Sharenpan Logo" className="brand-logo-img" />
           <span>
             sharenpan
-            <small>premium homemade cakes</small>
+            <small>lapis legit premium</small>
           </span>
         </Link>
 
@@ -98,9 +99,9 @@ export default function SharedNavbar({
           ) : (
             <>
               <Link href="/">Home</Link>
-              <Link href="/#produk">Shop</Link>
-              <Link href="/#cerita">Story</Link>
-              <Link href="/#special-edition">Gifts</Link>
+              <Link href="/#produk">Produk</Link>
+              <Link href="/#cerita">Tentang kami</Link>
+              <Link href="/#cara-order">Cara order</Link>
               <Link
                 href="/lacak"
                 className={`nav-pesanan-highlight${isLacak ? " active-nav" : ""}`}
@@ -126,7 +127,7 @@ export default function SharedNavbar({
           ) : user ? (
             /* Logged in on storefront / lacak */
             <>
-              <Link className="account-button" href="/customer">
+              <Link className="account-button" href="/customer?tab=profile">
                 👤 Profil Saya
               </Link>
               {onCartOpen && (
@@ -197,7 +198,7 @@ export default function SharedNavbar({
                 <span>
                   sharenpan
                   <small style={{ display: "block", fontSize: "8px", fontWeight: 700, letterSpacing: ".2em", textTransform: "uppercase", color: "#a1795a" }}>
-                    premium homemade cakes
+                    lapis legit premium
                   </small>
                 </span>
               </div>
@@ -217,7 +218,7 @@ export default function SharedNavbar({
                   <a href="#produk"     onClick={() => setMobileOpen(false)}>🎂 Produk</a>
                   <a href="#cerita"     onClick={() => setMobileOpen(false)}>💬 Tentang kami</a>
                   <a href="#cara-order" onClick={() => setMobileOpen(false)}>📋 Cara order</a>
-                  <a href="/lacak" className="nav-pesanan-highlight" onClick={() => setMobileOpen(false)}>
+                  <a href="/lacak" className="nav-pesanan-highlight" style={{ display: "flex" }} onClick={() => setMobileOpen(false)}>
                     📦 Lacak Pesanan
                   </a>
                 </>
@@ -227,7 +228,7 @@ export default function SharedNavbar({
                   <Link href="/#produk"      onClick={() => setMobileOpen(false)}>🎂 Produk</Link>
                   <Link href="/#cerita"      onClick={() => setMobileOpen(false)}>💬 Tentang kami</Link>
                   <Link href="/#cara-order"  onClick={() => setMobileOpen(false)}>📋 Cara order</Link>
-                  <Link href="/lacak" className={`nav-pesanan-highlight${isLacak ? " active-nav" : ""}`} onClick={() => setMobileOpen(false)}>
+                  <Link href="/lacak" className={`nav-pesanan-highlight${isLacak ? " active-nav" : ""}`} style={{ display: "flex" }} onClick={() => setMobileOpen(false)}>
                     📦 Lacak Pesanan
                   </Link>
                 </>
@@ -250,7 +251,7 @@ export default function SharedNavbar({
                 </>
               ) : user ? (
                 <>
-                  <Link href="/customer" className="primary-button full-button" style={{ textAlign: "center" }} onClick={() => setMobileOpen(false)}>
+                  <Link href="/customer?tab=profile" className="primary-button full-button" style={{ textAlign: "center" }} onClick={() => setMobileOpen(false)}>
                     👤 Profil Saya
                   </Link>
                   <button
@@ -280,3 +281,4 @@ export default function SharedNavbar({
     </>
   );
 }
+
