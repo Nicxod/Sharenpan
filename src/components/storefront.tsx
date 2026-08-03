@@ -737,7 +737,7 @@ export default function Storefront({
             ) : (
               filteredProducts.map((product) => (
                 <article className="product-card" key={product.id}>
-                  <div className="product-image" onClick={() => { setDetailProduct(product); setDetailSize("full"); setDetailQty(1); }} style={{ cursor: "pointer" }}>
+                  <div className={`product-image ${product.name.toLowerCase().includes("prune") || product.imageUrl.includes("lapis-plum") ? "portrait-product" : ""}`} onClick={() => { setDetailProduct(product); setDetailSize("full"); setDetailQty(1); }} style={{ cursor: "pointer" }}>
                     <span className="product-tag">{product.tag}</span>
                     <img src={product.imageUrl} alt={product.name} />
                   </div>
