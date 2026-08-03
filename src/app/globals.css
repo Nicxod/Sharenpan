@@ -950,6 +950,7 @@ h1 em, h2 em { color: var(--gold); font-style: italic; }
 .detail-image-box {
   position: relative;
   width: 100%;
+  aspect-ratio: 4 / 3;
   border-radius: 18px;
   overflow: hidden;
   border: 1px solid #ebd9c8;
@@ -959,10 +960,8 @@ h1 em, h2 em { color: var(--gold); font-style: italic; }
 .detail-image-box img {
   display: block;
   width: 100%;
-  height: auto;
-  max-height: 420px;
-  object-fit: contain;
-  object-position: center;
+  height: 100%;
+  object-fit: cover;
   background: #1a120d;
 }
 
