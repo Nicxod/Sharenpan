@@ -48,6 +48,29 @@ function StatusPill({ status }: { status: StorefrontStatus }) {
   );
 }
 
+function getProductGallery(product: StorefrontProduct) {
+  const isPlum =
+    product.name.toLowerCase().includes("plum") ||
+    product.name.toLowerCase().includes("prune") ||
+    product.categorySlug === "lapis-plum";
+
+  if (isPlum) {
+    return [
+      { url: "/assets/products/lapis-plum-full.jpg", label: "Full Loyang (20 × 20 cm)" },
+      { url: "/assets/products/lapis-plum-quarter.jpg", label: "1/4 Loyang (10 × 10 cm)" },
+      { url: "/assets/products/lapis-plum-side.jpg", label: "Tampak Samping (Layer View)" },
+    ];
+  }
+
+  return [
+    { url: "/assets/products/lapis-ori-block.jpg", label: "Full Block (20 × 20 cm)" },
+    { url: "/assets/products/lapis-ori-box-half.jpg", label: "Half Size Dus Reguler (10 × 20 cm)" },
+    { url: "/assets/products/lapis-ori-box-cubes.jpg", label: "Potongan Box Bite-Size" },
+    { url: "/assets/products/lapis-slice-packs.jpg", label: "Kemasan Slice Individual" },
+    { url: "/assets/products/lapis-ori-half.jpg", label: "Potongan Setengah Loyang" },
+  ];
+}
+
 export default function Storefront({
   products,
   databaseStatus,
@@ -70,6 +93,7 @@ export default function Storefront({
   const [detailProduct, setDetailProduct] = useState<StorefrontProduct | null>(null);
   const [detailSize, setDetailSize] = useState<"full" | "half">("full");
   const [detailQty, setDetailQty] = useState(1);
+  const [detailImageIndex, setDetailImageIndex] = useState(0);
 
   const [promoInput, setPromoInput] = useState("");
   const [appliedPromo, setAppliedPromo] = useState<{
@@ -1259,44 +1283,107 @@ export default function Storefront({
       )}
 
       {/* PRODUCT DETAIL MODAL */}
-      {detailProduct && (
-        <div className="modal-backdrop" role="presentation" onClick={() => setDetailProduct(null)}>
-          <div className="product-detail-modal" role="dialog" onClick={(e) => e.stopPropagation()}>
-            <button className="modal-close" onClick={() => setDetailProduct(null)}>×</button>
+      {detailProduct && (() => {
+        const gallery = getProductGallery(detailProduct);
+        const safeIndex = Math.min(detailImageIndex, gallery.length - 1);
+        const currentPhoto = gallery[safeIndex] || gallery[0];
 
-            <div className="detail-grid">
-              <div className="detail-image-box">
-                <span className="product-tag">{detailProduct.tag}</span>
-                <img src={detailProduct.imageUrl} alt={detailProduct.name} />
-              </div>
+        return (
+          <div className="modal-backdrop" role="presentation" onClick={() => setDetailProduct(null)}>
+            <div className="product-detail-modal" role="dialog" onClick={(e) => e.stopPropagation()}>
+              <button className="modal-close" onClick={() => setDetailProduct(null)}>×</button>
 
-              <div className="detail-info-box">
-                <p className="eyebrow">Resep Warisan Sejak 2014</p>
-                <h2>{detailProduct.name}</h2>
-                <p className="detail-description">{detailProduct.description}</p>
+              <div className="detail-grid">
+                <div className="detail-image-column">
+                  <div className="detail-image-box">
+                    <span className="product-tag">{detailProduct.tag}</span>
+                    <img src={currentPhoto.url} alt={`${detailProduct.name} - ${currentPhoto.label}`} />
 
-                {/* Size Selector */}
-                <div className="size-selector-box">
-                  <span className="section-label">Pilih Ukuran Kue:</span>
-                  <div className="size-options">
-                    <button
-                      type="button"
-                      className={`size-btn ${detailSize === "full" ? "selected" : ""}`}
-                      onClick={() => setDetailSize("full")}
-                    >
-                      <strong>Full Size (20 × 20 cm)</strong>
-                      <small>Berat ~1.000g • {money(detailProduct.price)}</small>
-                    </button>
-                    <button
-                      type="button"
-                      className={`size-btn ${detailSize === "half" ? "selected" : ""}`}
-                      onClick={() => setDetailSize("half")}
-                    >
-                      <strong>Half Size (10 × 20 cm)</strong>
-                      <small>Berat ~500g • {money(Math.round(detailProduct.price * 0.55))}</small>
-                    </button>
+                    {/* Carousel Arrow Controls */}
+                    {gallery.length > 1 && (
+                      <>
+                        <button
+                          type="button"
+                          className="carousel-arrow prev"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDetailImageIndex((prev) => (prev === 0 ? gallery.length - 1 : prev - 1));
+                          }}
+                          aria-label="Foto sebelumnya"
+                        >
+                          ‹
+                        </button>
+                        <button
+                          type="button"
+                          className="carousel-arrow next"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDetailImageIndex((prev) => (prev === gallery.length - 1 ? 0 : prev + 1));
+                          }}
+                          aria-label="Foto selanjutnya"
+                        >
+                          ›
+                        </button>
+                      </>
+                    )}
+
+                    {/* Image Caption Overlay Badge */}
+                    <div className="carousel-caption-badge">
+                      📷 {currentPhoto.label} ({safeIndex + 1}/{gallery.length})
+                    </div>
                   </div>
+
+                  {/* Thumbnails Carousel Strip */}
+                  {gallery.length > 1 && (
+                    <div className="detail-thumbnails-strip">
+                      {gallery.map((item, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          className={`thumbnail-item ${safeIndex === idx ? "active" : ""}`}
+                          onClick={() => setDetailImageIndex(idx)}
+                          title={item.label}
+                        >
+                          <img src={item.url} alt={item.label} />
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
+
+                <div className="detail-info-box">
+                  <p className="eyebrow">Resep Warisan Sejak 2014</p>
+                  <h2>{detailProduct.name}</h2>
+                  <p className="detail-description">{detailProduct.description}</p>
+
+                  {/* Size Selector */}
+                  <div className="size-selector-box">
+                    <span className="section-label">Pilih Ukuran Kue:</span>
+                    <div className="size-options">
+                      <button
+                        type="button"
+                        className={`size-btn ${detailSize === "full" ? "selected" : ""}`}
+                        onClick={() => {
+                          setDetailSize("full");
+                          setDetailImageIndex(0);
+                        }}
+                      >
+                        <strong>Full Size (20 × 20 cm)</strong>
+                        <small>Berat ~1.000g • {money(detailProduct.price)}</small>
+                      </button>
+                      <button
+                        type="button"
+                        className={`size-btn ${detailSize === "half" ? "selected" : ""}`}
+                        onClick={() => {
+                          setDetailSize("half");
+                          setDetailImageIndex(1);
+                        }}
+                      >
+                        <strong>Half Size (10 × 20 cm)</strong>
+                        <small>Berat ~500g • {money(Math.round(detailProduct.price * 0.55))}</small>
+                      </button>
+                    </div>
+                  </div>
 
                 {/* Premium Ingredients & Storage Advice */}
                 <div className="product-highlights">
@@ -1345,7 +1432,8 @@ export default function Storefront({
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
       {/* FLOATING WHATSAPP CHAT WIDGET */}
       <div className="wa-floating-container">
         {waWidgetOpen && (
