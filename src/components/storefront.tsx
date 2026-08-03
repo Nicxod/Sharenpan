@@ -15,6 +15,8 @@ export type StorefrontProduct = {
   imageUrl: string;
   tag: string;
   type: "classic" | "premium";
+  categorySlug?: string;
+  categoryName?: string;
   rating: string;
   reviews: string;
 };
@@ -26,7 +28,7 @@ export type StorefrontStatus = {
 };
 
 type CartItem = StorefrontProduct & { quantity: number };
-type Filter = "all" | "best" | "classic" | "premium";
+type Filter = "all" | "lapis-original" | "lapis-plum";
 
 const money = (value: number) => `Rp${value.toLocaleString("id-ID")}`;
 
@@ -110,8 +112,22 @@ export default function Storefront({
     () =>
       products.filter((product) => {
         if (filter === "all") return true;
-        if (filter === "best") return product.tag === "Terlaris";
-        return product.type === filter;
+        if (filter === "lapis-original") {
+          return (
+            product.categorySlug === "lapis-original" ||
+            product.name.toLowerCase().includes("original") ||
+            product.name.toLowerCase().includes("ori") ||
+            (!product.name.toLowerCase().includes("plum") && !product.name.toLowerCase().includes("prune"))
+          );
+        }
+        if (filter === "lapis-plum") {
+          return (
+            product.categorySlug === "lapis-plum" ||
+            product.name.toLowerCase().includes("plum") ||
+            product.name.toLowerCase().includes("prune")
+          );
+        }
+        return true;
       }),
     [filter, products],
   );
@@ -485,7 +501,7 @@ export default function Storefront({
         {/* 2 ── BRAND STORY (naik ke atas, kenalan dulu) */}
         <section className="story-section content-width" id="cerita">
           <div className="story-image">
-            <img src="/assets/lapis-legit.jpg" alt="Tekstur lapis legit Sharenpan" />
+            <img src="/assets/products/lapis-plum-side.jpg" alt="Tekstur & lapisan lapis legit Sharenpan" />
             <span className="story-card">
               EST.
               <strong>2014</strong>
@@ -658,23 +674,21 @@ export default function Storefront({
             <span className="section-count">{products.length} pilihan rasa</span>
           </div>
           <div className="filter-row" role="tablist" aria-label="Filter produk">
-            {(["all", "best", "classic", "premium"] as Filter[]).map(
-              (item) => (
-                <button
-                  key={item}
-                  className={filter === item ? "filter active" : "filter"}
-                  onClick={() => setFilter(item)}
-                >
-                  {item === "all"
-                    ? "Semua"
-                    : item === "best"
-                      ? "Terlaris"
-                      : item === "classic"
-                        ? "Classic"
-                        : "Premium"}
-                </button>
-              ),
-            )}
+            {(
+              [
+                { key: "all", label: "✨ Semua Produk" },
+                { key: "lapis-original", label: "🧈 Lapis Legit Original" },
+                { key: "lapis-plum", label: "🍇 Lapis Legit Varian Buah Plum" },
+              ] as const
+            ).map((item) => (
+              <button
+                key={item.key}
+                className={filter === item.key ? "filter active" : "filter"}
+                onClick={() => setFilter(item.key as Filter)}
+              >
+                {item.label}
+              </button>
+            ))}
           </div>
           <div className="product-grid">
             {products.length === 0 ? (

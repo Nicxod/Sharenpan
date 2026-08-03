@@ -1877,6 +1877,43 @@ h1 em, h2 em { color: var(--gold); font-style: italic; }
   border-color: #f5c6cb;
 }
 
+/* Desire layer: connect products with real customer moments */
+.desire-moments { padding-block: 72px 35px; }
+.desire-moments-heading { align-items: end; margin-bottom: 30px; }
+.desire-moments-heading > p { max-width: 330px; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.7; }
+.moment-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+.moment-card { position: relative; display: flex; min-height: 250px; flex-direction: column; align-items: flex-start; border: 1px solid #e6d9cc; border-radius: 18px; background: linear-gradient(145deg, #fffdf9, #f6eee5); padding: 24px; color: var(--ink); transition: transform .22s, box-shadow .22s, border-color .22s; }
+.moment-card:hover { border-color: #bd9871; box-shadow: 0 16px 35px rgba(92,58,36,.11); transform: translateY(-5px); }
+.moment-number { color: #b98558; font-size: 10px; font-weight: 800; letter-spacing: .14em; }
+.moment-icon { margin-top: 38px; color: #a97952; font-size: 10px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+.moment-card strong { margin-top: 9px; font-family: Georgia, serif; font-size: 24px; font-weight: 500; letter-spacing: -.035em; line-height: 1.08; }
+.moment-card small { max-width: 230px; margin-top: 10px; color: var(--muted); font-size: 12px; line-height: 1.55; }
+.moment-link { display: flex; justify-content: space-between; width: 100%; margin-top: auto; padding-top: 20px; color: var(--brown); font-size: 11px; font-weight: 800; }
+.moment-link b { font-size: 17px; font-weight: 400; }
+.desire-proof-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-top: 22px; border-block: 1px solid var(--line); padding-block: 22px; }
+.desire-proof-row div { display: flex; flex-direction: column; gap: 5px; border-right: 1px solid var(--line); padding-left: 18px; }
+.desire-proof-row div:first-child { padding-left: 0; }
+.desire-proof-row div:last-child { border-right: 0; }
+.desire-proof-row strong { color: var(--brown); font-family: Georgia, serif; font-size: 20px; }
+.desire-proof-row span { color: #9b8777; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+@media (max-width: 760px) {
+  .desire-moments { padding-block: 55px 25px; }
+  .desire-moments-heading { align-items: start; flex-direction: column; }
+  .desire-moments-heading > p { max-width: 470px; margin-top: 8px; }
+  .moment-grid { grid-template-columns: 1fr; }
+  .moment-card { min-height: 205px; }
+  .moment-icon { margin-top: 22px; }
+  .desire-proof-row { grid-template-columns: repeat(2, 1fr); }
+  .desire-proof-row div:nth-child(2) { border-right: 0; }
+  .desire-proof-row div:nth-child(3) { padding-left: 0; }
+}
+@media (max-width: 520px) {
+  .desire-proof-row { gap: 16px 10px; }
+  .desire-proof-row div { border-right: 0; padding-left: 0; }
+  .desire-proof-row strong { font-size: 18px; }
+  .desire-proof-row span { font-size: 9px; }
+}
+
 /* Match the original editorial campaign styling for the current markup */
 .testimonial-score { display: flex; align-items: center; gap: 10px; color: #bd7e3d; font-size: 13px; letter-spacing: .12em; }
 .testimonial-score strong { color: var(--ink); font: 700 36px Georgia, serif; letter-spacing: 0; }

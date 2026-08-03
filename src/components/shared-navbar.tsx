@@ -79,7 +79,7 @@ export default function SharedNavbar({
           <img src="/assets/logo.png" alt="Sharenpan Logo" className="brand-logo-img" />
           <span>
             sharenpan
-            <small>lapis legit premium</small>
+            <small>premium homemade cakes</small>
           </span>
         </Link>
 
@@ -98,9 +98,9 @@ export default function SharedNavbar({
           ) : (
             <>
               <Link href="/">Home</Link>
-              <Link href="/#produk">Produk</Link>
-              <Link href="/#cerita">Tentang kami</Link>
-              <Link href="/#cara-order">Cara order</Link>
+              <Link href="/#produk">Shop</Link>
+              <Link href="/#cerita">Story</Link>
+              <Link href="/#special-edition">Gifts</Link>
               <Link
                 href="/lacak"
                 className={`nav-pesanan-highlight${isLacak ? " active-nav" : ""}`}
@@ -197,7 +197,7 @@ export default function SharedNavbar({
                 <span>
                   sharenpan
                   <small style={{ display: "block", fontSize: "8px", fontWeight: 700, letterSpacing: ".2em", textTransform: "uppercase", color: "#a1795a" }}>
-                    lapis legit premium
+                    premium homemade cakes
                   </small>
                 </span>
               </div>
