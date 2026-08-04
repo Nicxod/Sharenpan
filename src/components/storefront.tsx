@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import AuthModal from "@/components/auth-modal";
-import PaymentUploadModal from "@/components/payment-upload-modal";
+import PaymentGatewayModal from "@/components/payment-gateway-modal";
 
 export type StorefrontProduct = {
   id: string;
@@ -27,7 +27,7 @@ export type StorefrontStatus = {
   detail: string;
 };
 
-type CartItem = StorefrontProduct & { quantity: number };
+type CartItem = StorefrontProduct & { quantity: number; productId?: string };
 type Filter = "all" | "lapis-original" | "lapis-plum";
 
 const money = (value: number) => `Rp${value.toLocaleString("id-ID")}`;
@@ -82,6 +82,7 @@ export default function Storefront({
 }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [cartHydrated, setCartHydrated] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [toast, setToast] = useState("");
@@ -112,6 +113,25 @@ export default function Storefront({
   const [waWidgetOpen, setWaWidgetOpen] = useState(false);
   const [isGiftOption, setIsGiftOption] = useState(false);
   const [giftDetails, setGiftDetails] = useState({ ribbon: "Pita Emas (Gold)", sender: "", recipient: "", cardMessage: "" });
+
+  useEffect(() => {
+    let savedCart: string | null = null;
+    try {
+      savedCart = localStorage.getItem("sharenpan_cart");
+    } catch {
+      localStorage.removeItem("sharenpan_cart");
+    }
+    window.setTimeout(() => {
+      if (savedCart) {
+        try { setCart(JSON.parse(savedCart) as CartItem[]); } catch { /* Ignore malformed saved cart. */ }
+      }
+      setCartHydrated(true);
+    }, 0);
+  }, []);
+
+  useEffect(() => {
+    if (cartHydrated) localStorage.setItem("sharenpan_cart", JSON.stringify(cart));
+  }, [cart, cartHydrated]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -168,7 +188,7 @@ export default function Storefront({
     window.setTimeout(() => setToast(""), 2400);
   }
 
-  function addToCart(product: StorefrontProduct) {
+  function addToCart(product: StorefrontProduct & { productId?: string }) {
     if (!user) {
       setAuthOpen(true);
       showToast("Masuk atau daftar dulu untuk memesan");
@@ -259,7 +279,7 @@ export default function Storefront({
 
     try {
       const supabase = createClient();
-      const { data } = await supabase.from("promo_codes").select("*").eq("code", code).eq("is_active", true).single();
+      const { data } = await supabase.from("promo_codes").select("*").eq("code", code).eq("active", true).single();
       if (data) {
         setAppliedPromo({
           code: data.code,
@@ -326,7 +346,7 @@ export default function Storefront({
     if (error || !order) {
       setCheckoutError(error?.message || "Pesanan belum dapat dibuat.");
     } else {
-      const { error: itemsError } = await supabase.from("order_items").insert(cart.map((item) => ({ order_id: order.id, product_id: item.id.startsWith("fallback-") ? null : item.id, product_name: item.name, unit_price: item.price, quantity: item.quantity, subtotal: item.price * item.quantity })));
+      const { error: itemsError } = await supabase.from("order_items").insert(cart.map((item) => ({ order_id: order.id, product_id: (item.productId || item.id).startsWith("fallback-") ? null : (item.productId || item.id), product_name: item.name, unit_price: item.price, quantity: item.quantity, subtotal: item.price * item.quantity })));
       if (itemsError) setCheckoutError(itemsError.message);
       else {
         setCart([]);
@@ -798,7 +818,7 @@ export default function Storefront({
               <div className="hampers-card-body">
                 <h3>Hampers Edisi Imlek & Perayaan</h3>
                 <p>
-                  Kemasan khusus hantaran dengan selongsong & kartu ucapan "Happy Chinese New Year" berwarna merah hangat bernuansa mewah.
+                  Kemasan khusus hantaran dengan selongsong & kartu ucapan &quot;Happy Chinese New Year&quot; berwarna merah hangat bernuansa mewah.
                 </p>
                 <div className="hampers-feature-list">
                   <span>🧧 Kartu Ucapan & Stiker Tematik</span>
@@ -826,7 +846,7 @@ export default function Storefront({
               <div className="hampers-card-body">
                 <h3>Hampers Edisi Lebaran</h3>
                 <p>
-                  Kemasan hampers eksklusif Idul Fitri bernuansa floral & kubah "Eid Mubarak" dengan pisau kue spesial, pas untuk hantaran kerabat.
+                  Kemasan hampers eksklusif Idul Fitri bernuansa floral & kubah &quot;Eid Mubarak&quot; dengan pisau kue spesial, pas untuk hantaran kerabat.
                 </p>
                 <div className="hampers-feature-list">
                   <span>🌙 Design Box Eksklusif Eid Mubarak</span>
@@ -860,7 +880,7 @@ export default function Storefront({
           <div className="ugc-grid">
             <div className="ugc-card">
               <div className="ugc-badge">⭐ 5.0 Rating</div>
-              <p className="ugc-quote">"Harum butter Wijsman langsung kerasa banget pas dus dibuka! Teksturnya super lembut, 1 loyang habis sekeluarga pas kumpul Lebaran."</p>
+              <p className="ugc-quote">&quot;Harum butter Wijsman langsung kerasa banget pas dus dibuka! Teksturnya super lembut, 1 loyang habis sekeluarga pas kumpul Lebaran.&quot;</p>
               <div className="ugc-author">
                 <strong>Diana Pratiwi</strong>
                 <small>Verified Buyer • Bandung</small>
@@ -869,7 +889,7 @@ export default function Storefront({
 
             <div className="ugc-card">
               <div className="ugc-badge">🎁 Hampers Gift</div>
-              <p className="ugc-quote">"Pesan paket hampers pita emas untuk mertua. Packaging-nya sangat mewah dan rasa lapis legit prune-nya dapet pujian terus!"</p>
+              <p className="ugc-quote">&quot;Pesan paket hampers pita emas untuk mertua. Packaging-nya sangat mewah dan rasa lapis legit prune-nya dapet pujian terus!&quot;</p>
               <div className="ugc-author">
                 <strong>Budi Santoso</strong>
                 <small>Verified Buyer • Jakarta</small>
@@ -878,7 +898,7 @@ export default function Storefront({
 
             <div className="ugc-card">
               <div className="ugc-badge">☕ Coffee Companion</div>
-              <p className="ugc-quote">"Legitnya pas, gak manis bikin enek. Cocok banget disandingkan sama kopi hitam hangat pas sore-sore."</p>
+              <p className="ugc-quote">&quot;Legitnya pas, gak manis bikin enek. Cocok banget disandingkan sama kopi hitam hangat pas sore-sore.&quot;</p>
               <div className="ugc-author">
                 <strong>Melissa V.</strong>
                 <small>Verified Buyer • Surabaya</small>
@@ -1272,14 +1292,14 @@ export default function Storefront({
         </div>
       )}
       {paymentGatewayOrder && (
-        <PaymentUploadModal
+        <PaymentGatewayModal
           orderId={paymentGatewayOrder.id}
           orderNumber={paymentGatewayOrder.number}
           totalAmount={paymentGatewayOrder.total}
           onClose={() => setPaymentGatewayOrder(null)}
           onSuccess={() => {
             setPaymentGatewayOrder(null);
-            showToast("Pembayaran berhasil diverifikasi!");
+            showToast("Bukti pembayaran terkirim, menunggu verifikasi admin.");
             setCart([]);
             setAuthOpen(false);
           }}
@@ -1449,8 +1469,10 @@ export default function Storefront({
                             ? "10x20 cm"
                             : "10x10 cm";
                       for (let i = 0; i < detailQty; i++) {
-                        addToCart({
+                      addToCart({
                           ...detailProduct,
+                          id: `${detailProduct.id}-${detailSize}`,
+                          productId: detailProduct.id,
                           price: itemPrice,
                           name: `${detailProduct.name} (${sizeLabel})`,
                         });
@@ -1468,7 +1490,7 @@ export default function Storefront({
         );
       })()}
       {/* FLOATING WHATSAPP CHAT WIDGET */}
-      <div className="wa-floating-container">
+      {!cartOpen && !checkoutOpen && <div className="wa-floating-container">
         {waWidgetOpen && (
           <div className="wa-chat-box">
             <div className="wa-chat-header">
@@ -1532,7 +1554,7 @@ export default function Storefront({
           <span className="wa-icon">💬</span>
           <span className="wa-btn-label">Tanya CS WA</span>
         </button>
-      </div>
+      </div>}
 
       {/* LEAD MAGNET POPUP MODAL (WELCOME10 VOUCHER) */}
       {leadMagnetOpen && (

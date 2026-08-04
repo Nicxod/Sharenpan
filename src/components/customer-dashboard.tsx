@@ -20,11 +20,31 @@ export type CustomerOrder = {
   created_at: string;
 };
 
+export type CustomerOrderItem = {
+  order_id: string;
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+  subtotal: number;
+};
+
+export type CustomerVoucher = {
+  id: string;
+  code: string;
+  description: string | null;
+  discount_type: "percentage" | "fixed";
+  discount_value: number;
+  minimum_purchase: number;
+  expires_at: string | null;
+};
+
 export type CustomerData = {
   name: string;
   email: string;
   phone: string;
   orders: CustomerOrder[];
+  orderItems: CustomerOrderItem[];
+  vouchers: CustomerVoucher[];
 };
 
 type SideTab = "pesanan" | "profile" | "voucher";
@@ -56,6 +76,7 @@ const statusColor: Record<string, string> = {
 const paymentLabel: Record<string, { text: string; cls: string }> = {
   unpaid:   { text: "Belum Dibayar",        cls: "pill-red"   },
   pending:  { text: "Menunggu Verifikasi",   cls: "pill-amber" },
+  pending_verification: { text: "Bukti Menunggu Verifikasi", cls: "pill-amber" },
   paid:     { text: "Lunas",                cls: "pill-green" },
   failed:   { text: "Gagal",               cls: "pill-red"   },
   refunded: { text: "Dikembalikan",         cls: "pill-amber" },
@@ -89,10 +110,36 @@ export default function CustomerDashboard({ initialData }: { initialData: Custom
   const [feedbackOk, setFeedbackOk]               = useState("");
   const [feedbackLoading, setFeedbackLoading]     = useState(false);
   const [search, setSearch]                       = useState("");
+  const [profileName, setProfileName]             = useState(initialData.name);
+  const [profilePhone, setProfilePhone]           = useState(initialData.phone === "Nomor telepon belum diisi" ? "" : initialData.phone);
+  const [profileSaving, setProfileSaving]         = useState(false);
+  const [profileMessage, setProfileMessage]       = useState("");
+  const [copiedVoucher, setCopiedVoucher]         = useState("");
 
   async function signOut() {
     await createClient().auth.signOut();
     window.location.href = "/";
+  }
+
+  async function saveProfile(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setProfileSaving(true);
+    setProfileMessage("");
+    const supabase = createClient();
+    const user = (await supabase.auth.getUser()).data.user;
+    const { error } = await supabase.from("profiles").update({ full_name: profileName.trim(), phone: profilePhone.trim() || null }).eq("id", user?.id || "");
+    if (error) setProfileMessage(error.message);
+    else {
+      setData((current) => ({ ...current, name: profileName.trim() || current.name, phone: profilePhone.trim() || "Nomor telepon belum diisi" }));
+      setProfileMessage("Profil berhasil diperbarui.");
+    }
+    setProfileSaving(false);
+  }
+
+  async function copyVoucher(code: string) {
+    await navigator.clipboard.writeText(code);
+    setCopiedVoucher(code);
+    window.setTimeout(() => setCopiedVoucher(""), 1800);
   }
 
   async function refreshOrders() {
@@ -220,7 +267,7 @@ export default function CustomerDashboard({ initialData }: { initialData: Custom
                 ) : (
                   activeOrders.map((order) => {
                     const steps  = getSteps(order.status, order.payment_status, order.created_at);
-                    const unpaid = order.payment_status === "unpaid";
+                    const unpaid = ["unpaid", "failed"].includes(order.payment_status);
                     return (
                       <div key={order.id} className="cd-order-card">
                         {/* Card header */}
@@ -338,7 +385,7 @@ export default function CustomerDashboard({ initialData }: { initialData: Custom
                                   💬 Ulasan
                                 </button>
                               )}
-                              {order.payment_status === "unpaid" && (
+                              {["unpaid", "failed"].includes(order.payment_status) && (
                                 <button className="primary-button cd-hcard-btn" onClick={() => setPayOrder(order)}>
                                   Bayar
                                 </button>
@@ -368,6 +415,12 @@ export default function CustomerDashboard({ initialData }: { initialData: Custom
                 {/* Info pribadi */}
                 <div className="cd-profile-card">
                   <h3>Informasi Pribadi</h3>
+                  <form className="stack-form" onSubmit={saveProfile} style={{ marginBottom: "18px" }}>
+                    <label>Nama Lengkap<input value={profileName} onChange={(event) => setProfileName(event.target.value)} required /></label>
+                    <label>No. WhatsApp<input value={profilePhone} onChange={(event) => setProfilePhone(event.target.value)} placeholder="08xxxxxxxxxx" /></label>
+                    {profileMessage && <small className="form-message">{profileMessage}</small>}
+                    <button className="primary-button" disabled={profileSaving}>{profileSaving ? "Menyimpan..." : "Simpan Profil"}</button>
+                  </form>
                   {[
                     { label: "Nama Lengkap",      val: data.name },
                     { label: "Email Terdaftar",    val: data.email },
@@ -437,9 +490,10 @@ export default function CustomerDashboard({ initialData }: { initialData: Custom
                     <span className="cd-voucher-badge-active">● AKTIF</span>
                     <span className="cd-voucher-exp">Berlaku selamanya</span>
                   </div>
-                  <div className="cd-voucher-code">WELCOME10</div>
+                  <div className="cd-voucher-code">{data.vouchers[0]?.code || "WELCOME10"}</div>
                   <div className="cd-voucher-desc">Diskon 10% untuk semua produk lapis legit Sharenpan</div>
                   <div className="cd-voucher-value">Hemat 10%</div>
+                  <button className="secondary-button" style={{ marginTop: "14px" }} onClick={() => copyVoucher(data.vouchers[0]?.code || "WELCOME10")}>{copiedVoucher === (data.vouchers[0]?.code || "WELCOME10") ? "Tersalin ✓" : "Salin Kode"}</button>
                   <div className="cd-voucher-notch-left" />
                   <div className="cd-voucher-notch-right" />
                 </div>
@@ -529,12 +583,22 @@ export default function CustomerDashboard({ initialData }: { initialData: Custom
               <div><span>Catatan</span><strong>{detailOrder.notes || "Tidak ada catatan"}</strong></div>
             </div>
 
+            <div style={{ borderTop: "1px solid var(--line)", paddingTop: "14px", marginBottom: "14px" }}>
+              <strong style={{ display: "block", marginBottom: "10px", color: "#6f4932" }}>Item Pesanan</strong>
+              {data.orderItems.filter((item) => item.order_id === detailOrder.id).map((item) => (
+                <div key={`${item.order_id}-${item.product_name}`} style={{ display: "flex", justifyContent: "space-between", gap: "12px", padding: "6px 0", fontSize: "13px" }}>
+                  <span>{item.product_name} × {item.quantity}<small style={{ display: "block", color: "var(--muted)" }}>{money(item.unit_price)} / item</small></span>
+                  <strong>{money(item.subtotal)}</strong>
+                </div>
+              ))}
+            </div>
+
             <div style={{ borderTop: "1px solid var(--line)", paddingTop: "14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span style={{ fontSize: "13px", color: "var(--muted)" }}>Total Tagihan</span>
               <strong style={{ fontFamily: "Georgia, serif", fontSize: "22px", color: "#7a4f28" }}>{money(detailOrder.total)}</strong>
             </div>
 
-            {detailOrder.payment_status === "unpaid" && (
+            {["unpaid", "failed"].includes(detailOrder.payment_status) && (
               <button className="primary-button full-button" style={{ marginTop: "16px" }}
                 onClick={() => { const o = detailOrder; setDetailOrder(null); setPayOrder(o); }}>
                 💳 Lanjut Bayar ({money(detailOrder.total)})
@@ -577,7 +641,7 @@ export default function CustomerDashboard({ initialData }: { initialData: Custom
                 try {
                   const supabase = createClient();
                   const { data: { user } } = await supabase.auth.getUser();
-                  await supabase.from("customer_feedback").insert({
+                  const { error } = await supabase.from("customer_feedback").insert({
                     order_id: feedbackOrder.id,
                     user_id: user?.id || null,
                     customer_name: data.name,
@@ -585,9 +649,12 @@ export default function CustomerDashboard({ initialData }: { initialData: Custom
                     rating_score: feedbackRating,
                     message: feedbackMsg.trim(),
                   });
+                  if (error) throw new Error(error.message);
                   setFeedbackOk("Terima kasih! Masukan Anda terkirim privat ke Admin Sharenpan.");
                   setTimeout(() => { setFeedbackOk(""); setFeedbackOrder(null); setFeedbackMsg(""); }, 2400);
-                } catch { /* silent */ }
+                } catch (error) {
+                  setFeedbackOk(error instanceof Error ? error.message : "Masukan belum berhasil dikirim.");
+                }
                 finally { setFeedbackLoading(false); }
               }}>
                 <label>

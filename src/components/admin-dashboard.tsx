@@ -100,9 +100,22 @@ export default function AdminDashboard({ initialData }: { initialData: AdminData
 
   async function deleteProduct(id: string, name: string) {
     if (!window.confirm(`Hapus produk ${name}?`)) return;
-    const { error } = await createClient().from("products").delete().eq("id", id);
-    if (error) notify(error.message);
-    else { setData((current) => ({ ...current, products: current.products.filter((item) => item.id !== id) })); notify("Produk berhasil dihapus."); }
+    const supabase = createClient();
+    const { error } = await supabase.from("products").delete().eq("id", id);
+    if (error) {
+      // Fallback ke soft delete (status = 'archived') jika hard delete terhalang FK constraint / RLS
+      const { error: softError } = await supabase.from("products").update({ status: "archived" }).eq("id", id);
+      if (softError) {
+        alert(`Gagal menghapus produk '${name}': ${error.message || softError.message}`);
+        notify(`Gagal menghapus: ${error.message || softError.message}`);
+      } else {
+        setData((current) => ({ ...current, products: current.products.filter((item) => item.id !== id) }));
+        notify("Produk berhasil diarsipkan dan disembunyikan dari katalog.");
+      }
+    } else {
+      setData((current) => ({ ...current, products: current.products.filter((item) => item.id !== id) }));
+      notify("Produk berhasil dihapus dari database.");
+    }
   }
 
   async function updateOrder(id: string, changes: OrderChanges) {

@@ -1072,9 +1072,18 @@ h1 em, h2 em { color: var(--gold); font-style: italic; }
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 12px;
   border-top: 1px solid var(--line);
   padding-top: 18px;
+}
+
+.detail-action-row > .primary-button {
+  flex: 1 1 190px;
+  min-width: 0;
+  justify-content: center;
+  text-align: center;
+  white-space: normal;
 }
 
 @media (max-width: 900px) {
@@ -1121,6 +1130,10 @@ h1 em, h2 em { color: var(--gold); font-style: italic; }
     grid-template-columns: 1fr;
     gap: 18px;
   }
+
+  .product-detail-modal { width: calc(100vw - 20px); max-width: calc(100vw - 20px); padding: 24px 16px; }
+  .detail-action-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+  .detail-action-row > .primary-button { grid-column: 1 / -1; width: 100%; }
 }
 
 
