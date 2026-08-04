@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-type Product = { id: string; name: string; slug: string; price: number; stock: number; status: string; image_url: string | null; created_at: string };
+type Product = { id: string; name: string; slug: string; description?: string | null; price: number; stock: number; status: string; image_url: string | null; created_at: string };
 type Order = { id: string; order_number: string; customer_name: string; customer_email: string | null; customer_phone: string; total: number; status: string; payment_status: string; created_at: string };
 type OrderItem = { product_id: string | null; product_name: string; quantity: number; subtotal: number };
 type Customer = { id: string; full_name: string | null; phone: string | null; role: string; created_at: string };
@@ -16,9 +16,8 @@ type OrderChanges = { status?: string; payment_status?: string };
 const money = (value: number) => `Rp${value.toLocaleString("id-ID")}`;
 const date = (value: string) => new Date(value).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
 const statusLabels: Record<string, string> = { pending: "Menunggu", confirmed: "Dikonfirmasi", processing: "Diproses", shipped: "Dikirim", completed: "Selesai", cancelled: "Dibatalkan" };
-const paymentLabels: Record<string, string> = { unpaid: "Belum dibayar", pending: "Menunggu", paid: "Dibayar", failed: "Gagal", refunded: "Dikembalikan" };
+const paymentLabels: Record<string, string> = { unpaid: "Belum dibayar", pending: "Menunggu", paid: "Dibayar", failed: "Gagal", refunded: "Dikembalikan", cancelled: "Dibatalkan" };
 const navItems: Array<[Section, string, string]> = [["overview", "Overview", "▦"], ["orders", "Pesanan", "▤"], ["products", "Produk", "◫"], ["customers", "Pelanggan", "♙"], ["feedback", "Feedback", "💬"], ["reports", "Laporan", "◌"]];
-
 
 export default function AdminDashboard({ initialData }: { initialData: AdminData }) {
   const [data, setData] = useState(initialData);
@@ -26,6 +25,7 @@ export default function AdminDashboard({ initialData }: { initialData: AdminData
   const [productForm, setProductForm] = useState({ name: "", price: "", stock: "", description: "", image: null as File | null });
   const [imagePreview, setImagePreview] = useState("");
   const [showProductForm, setShowProductForm] = useState(false);
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
   const [orderFilter, setOrderFilter] = useState("all");
   const [customerSearch, setCustomerSearch] = useState("");
@@ -71,7 +71,7 @@ export default function AdminDashboard({ initialData }: { initialData: AdminData
   function goTo(next: Section) { setSection(next); setNotice(""); }
   function notify(message: string) { setNotice(message); window.setTimeout(() => setNotice(""), 3500); }
 
-  async function addProduct(event: React.FormEvent<HTMLFormElement>) {
+  async function saveProduct(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (productForm.image && !productForm.image.type.startsWith("image/")) { notify("File harus berupa gambar."); return; }
     if (productForm.image && productForm.image.size > 5 * 1024 * 1024) { notify("Ukuran foto maksimal 5 MB."); return; }
@@ -86,9 +86,18 @@ export default function AdminDashboard({ initialData }: { initialData: AdminData
       if (uploadError) { notify(`Foto belum bisa diupload: ${uploadError.message}`); return; }
       imageUrl = supabase.storage.from("product-images").getPublicUrl(imagePath).data.publicUrl;
     }
-    const { data: product, error } = await supabase.from("products").insert({ name: productForm.name.trim(), slug, description: productForm.description.trim(), price: Number(productForm.price), stock: Number(productForm.stock), status: "active", image_url: imageUrl }).select("id, name, slug, price, stock, status, image_url, created_at").single();
+    const payload: any = { name: productForm.name.trim(), slug, description: productForm.description.trim(), price: Number(productForm.price), stock: Number(productForm.stock), status: "active" };
+    if (imageUrl) payload.image_url = imageUrl;
+    let error, product;
+    if (editingProductId) {
+      const result = await supabase.from("products").update(payload).eq("id", editingProductId).select("id, name, slug, description, price, stock, status, image_url, created_at").single();
+      error = result.error; product = result.data;
+    } else {
+      const result = await supabase.from("products").insert(payload).select("id, name, slug, description, price, stock, status, image_url, created_at").single();
+      error = result.error; product = result.data;
+    }
     if (error || !product) notify(error?.message || "Produk belum berhasil disimpan.");
-    else { setData((current) => ({ ...current, products: [product, ...current.products] })); setProductForm({ name: "", price: "", stock: "", description: "", image: null }); setImagePreview(""); setShowProductForm(false); notify("Produk berhasil ditambahkan."); }
+    else { setData((current) => ({ ...current, products: editingProductId ? current.products.map(p => p.id === product.id ? product : p) : [product, ...current.products] })); setProductForm({ name: "", price: "", stock: "", description: "", image: null }); setImagePreview(""); setShowProductForm(false); setEditingProductId(null); notify(editingProductId ? "Produk berhasil diperbarui." : "Produk berhasil ditambahkan."); }
     if ((error || !product) && imagePath) await supabase.storage.from("product-images").remove([imagePath]);
   }
 
@@ -124,12 +133,12 @@ export default function AdminDashboard({ initialData }: { initialData: AdminData
       <button className="back-store" onClick={() => window.location.href = "/"}>← Kembali ke toko</button>
     </aside>
     <main className="admin-main">
-      <header className="admin-header"><div><p className="eyebrow">{new Date().toLocaleDateString("id-ID", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}</p><h1>{pageTitle}</h1></div><button className="admin-user" onClick={signOut}><span>AD</span><strong>{initialData.adminName}<small>Administrator · Keluar</small></strong>⌄</button></header>
+      <header className="admin-header"><div><p className="eyebrow">{new Date().toLocaleDateString("id-ID", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}</p><h1>{pageTitle}</h1></div><div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}><div className="admin-user" style={{ cursor: 'default' }}><span>AD</span><strong>{initialData.adminName}<small>Administrator</small></strong></div><button className="delete-product" style={{background:'#e6e0d9',color:'#4d3b2d'}} onClick={signOut}>Keluar</button></div></header>
       {notice && <div className="admin-notice">{notice}<button onClick={() => setNotice("")}>×</button></div>}
 
       {section === "overview" && <Overview revenue={revenue} todayOrders={todayOrders} customers={data.customers.filter((customer) => customer.role !== "admin").length} activeProducts={activeProducts} pending={pending} chartData={chartData} chartPoints={chartPoints} chartMax={chartMax} reportRange={reportRange} setReportRange={setReportRange} topProducts={topProducts} orders={data.orders.slice(0, 5)} onOrders={() => goTo("orders")} onProducts={() => goTo("products")} onUpdateOrder={updateOrder} />}
       {section === "orders" && <section className="admin-panel full-panel"><div className="panel-heading"><div><h2>Pesanan</h2><p>Kelola status pengiriman dan pembayaran customer</p></div><select className="filter-select" value={orderFilter} onChange={(event) => setOrderFilter(event.target.value)}><option value="all">Semua status</option>{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div><OrderTable orders={filteredOrders} onUpdate={updateOrder} /></section>}
-      {section === "products" && <ProductsSection products={data.products} productForm={productForm} setProductForm={setProductForm} imagePreview={imagePreview} setImagePreview={setImagePreview} showProductForm={showProductForm} setShowProductForm={setShowProductForm} onAdd={addProduct} onUpdate={updateProduct} onDelete={deleteProduct} />}
+      {section === "products" && <ProductsSection products={data.products} productForm={productForm} setProductForm={setProductForm} imagePreview={imagePreview} setImagePreview={setImagePreview} showProductForm={showProductForm} setShowProductForm={setShowProductForm} editingProductId={editingProductId} setEditingProductId={setEditingProductId} onAdd={saveProduct} onUpdate={updateProduct} onDelete={deleteProduct} />}
       {section === "customers" && <section className="admin-panel full-panel"><div className="panel-heading"><div><h2>Pelanggan</h2><p>{filteredCustomers.length} customer terdaftar di Sharenpan</p></div><input className="panel-search" value={customerSearch} onChange={(event) => setCustomerSearch(event.target.value)} placeholder="Cari nama atau telepon" /></div><div className="customer-grid">{filteredCustomers.map((customer) => <div className="customer-card" key={customer.id}><span>{(customer.full_name || "C").slice(0, 1).toUpperCase()}</span><div><strong>{customer.full_name || "Customer"}</strong><small>{customer.phone || "Nomor belum diisi"}</small><small>Bergabung {date(customer.created_at)}</small></div></div>)}{filteredCustomers.length === 0 && <div className="empty-table">Belum ada customer yang cocok.</div>}</div></section>}
       {section === "feedback" && (
         <section className="admin-panel full-panel">
@@ -171,9 +180,55 @@ function Overview({ revenue, todayOrders, customers, activeProducts, pending, ch
 
 function SalesChart({ data, points, max }: { data: Array<{ label: string; value: number }>; points: string; max: number }) { return <div className="sales-chart"><div className="chart-axis"><span>{money(max)}</span><span>{money(max / 2)}</span><span>Rp0</span></div><svg viewBox="0 0 100 160" preserveAspectRatio="none" role="img" aria-label="Grafik penjualan"><defs><linearGradient id="sales-fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#d9a05c" stopOpacity=".4" /><stop offset="100%" stopColor="#d9a05c" stopOpacity=".03" /></linearGradient></defs><polygon points={`0,150 ${points} 100,150`} fill="url(#sales-fill)" /><polyline points={points} fill="none" stroke="#c98632" strokeWidth="1.3" vectorEffect="non-scaling-stroke" /></svg><div className="chart-labels">{data.map((item) => <span key={item.label}>{item.label}</span>)}</div></div>; }
 
-function ProductsSection({ products, productForm, setProductForm, imagePreview, setImagePreview, showProductForm, setShowProductForm, onAdd, onUpdate, onDelete }: { products: Product[]; productForm: { name: string; price: string; stock: string; description: string; image: File | null }; setProductForm: (value: { name: string; price: string; stock: string; description: string; image: File | null }) => void; imagePreview: string; setImagePreview: (value: string) => void; showProductForm: boolean; setShowProductForm: (value: boolean) => void; onAdd: (event: React.FormEvent<HTMLFormElement>) => void; onUpdate: (id: string, changes: { stock?: number; status?: string }) => void; onDelete: (id: string, name: string) => void }) { return <section className="admin-panel full-panel"><div className="panel-heading"><div><h2>Produk</h2><p>Tambah, ubah stok, status, foto, dan hapus katalog</p></div><button className="dark-small-button" onClick={() => setShowProductForm(!showProductForm)}>+ Tambah produk</button></div>{showProductForm && <form className="product-form" onSubmit={onAdd}><div className="product-image-picker"><div className="product-image-preview">{imagePreview ? <img src={imagePreview} alt="Preview foto produk" /> : <span>Foto<br />produk</span>}</div><label className="image-upload-label">Pilih foto produk<input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => { const file = event.target.files?.[0] || null; setProductForm({ ...productForm, image: file }); setImagePreview(file ? URL.createObjectURL(file) : ""); }} /><small>{productForm.image ? productForm.image.name : "PNG, JPG, WEBP · maksimal 5 MB"}</small></label></div><div className="product-form-fields"><label>Nama produk<input value={productForm.name} onChange={(event) => setProductForm({ ...productForm, name: event.target.value })} required /></label><label>Harga<input type="number" min="0" value={productForm.price} onChange={(event) => setProductForm({ ...productForm, price: event.target.value })} required /></label><label>Stok<input type="number" min="0" value={productForm.stock} onChange={(event) => setProductForm({ ...productForm, stock: event.target.value })} required /></label><label>Deskripsi<input value={productForm.description} onChange={(event) => setProductForm({ ...productForm, description: event.target.value })} /></label><button className="dark-small-button">Simpan produk</button></div></form>}<div className="admin-product-list">{products.map((product) => <div className="admin-product-row" key={product.id}><span className="admin-product-thumb">{product.image_url ? <img src={product.image_url} alt="" /> : "S"}</span><div><strong>{product.name}</strong><small>{product.slug}</small></div><b>{money(product.price)}</b><label className="inline-stock"><span>Stok</span><input type="number" min="0" value={product.stock} onChange={(event) => onUpdate(product.id, { stock: Number(event.target.value) })} /></label><select className="product-status" value={product.status} onChange={(event) => onUpdate(product.id, { status: event.target.value })}><option value="active">Aktif</option><option value="draft">Draft</option><option value="archived">Arsip</option></select><button className="delete-product" onClick={() => onDelete(product.id, product.name)}>Hapus</button></div>)}</div></section>; }
+function ProductsSection({ products, productForm, setProductForm, imagePreview, setImagePreview, showProductForm, setShowProductForm, editingProductId, setEditingProductId, onAdd, onUpdate, onDelete }: { products: Product[]; productForm: { name: string; price: string; stock: string; description: string; image: File | null }; setProductForm: (value: { name: string; price: string; stock: string; description: string; image: File | null }) => void; imagePreview: string; setImagePreview: (value: string) => void; showProductForm: boolean; setShowProductForm: (value: boolean) => void; editingProductId: string | null; setEditingProductId: (id: string | null) => void; onAdd: (event: React.FormEvent<HTMLFormElement>) => void; onUpdate: (id: string, changes: { stock?: number; status?: string }) => void; onDelete: (id: string, name: string) => void }) {
+  const FormElement = () => (
+    <form className="product-form" onSubmit={onAdd} style={{ margin: editingProductId ? '10px 0 20px' : '0 0 19px' }}>
+      <div className="product-image-picker">
+        <div className="product-image-preview">{imagePreview ? <img src={imagePreview} alt="Preview foto produk" /> : <span>Foto<br />produk</span>}</div>
+        <label className="image-upload-label">Pilih foto produk<input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => { const file = event.target.files?.[0] || null; setProductForm({ ...productForm, image: file }); setImagePreview(file ? URL.createObjectURL(file) : ""); }} /><small>{productForm.image ? productForm.image.name : "PNG, JPG, WEBP · maksimal 5 MB"}</small></label>
+      </div>
+      <div className="product-form-fields">
+        <label>Nama produk<input value={productForm.name} onChange={(event) => setProductForm({ ...productForm, name: event.target.value })} required /></label>
+        <label>Harga<input type="number" min="0" value={productForm.price} onChange={(event) => setProductForm({ ...productForm, price: event.target.value })} required /></label>
+        <label>Stok<input type="number" min="0" value={productForm.stock} onChange={(event) => setProductForm({ ...productForm, stock: event.target.value })} required /></label>
+        <label>Deskripsi<input value={productForm.description} onChange={(event) => setProductForm({ ...productForm, description: event.target.value })} /></label>
+        <div style={{display:'flex',gap:'8px'}}>
+          <button className="delete-product" style={{background:'#3b2d24',color:'white'}}>{editingProductId ? "Simpan perubahan" : "Simpan produk"}</button>
+          <button type="button" className="delete-product" onClick={() => { setShowProductForm(false); setEditingProductId(null); }} style={{background:'transparent',border:'1px solid #ccc',color:'#3b2d24',cursor:'pointer'}}>Batal</button>
+        </div>
+      </div>
+    </form>
+  );
+  return (
+    <section className="admin-panel full-panel">
+      <div className="panel-heading">
+        <div><h2>Produk</h2><p>Tambah, ubah stok, status, foto, dan hapus katalog</p></div>
+        <button className="dark-small-button" onClick={() => { setShowProductForm(true); setEditingProductId(null); setProductForm({ name: "", price: "", stock: "", description: "", image: null }); setImagePreview(""); }}>+ Tambah produk</button>
+      </div>
+      {!editingProductId && showProductForm && <FormElement />}
+      <div className="admin-product-list">
+        {products.map((product) => (
+          <div key={product.id}>
+            <div className="admin-product-row" style={{gridTemplateColumns:'44px 1fr 100px 90px 70px auto'}}>
+              <span className="admin-product-thumb">{product.image_url ? <img src={product.image_url} alt="" /> : "S"}</span>
+              <div><strong>{product.name}</strong><small>{product.slug}</small></div>
+              <b>{money(product.price)}</b>
+              <label className="inline-stock"><span>Stok</span><input type="number" min="0" value={product.stock} onChange={(event) => onUpdate(product.id, { stock: Number(event.target.value) })} /></label>
+              <select className="product-status" value={product.status} onChange={(event) => onUpdate(product.id, { status: event.target.value })}><option value="active">Aktif</option><option value="draft">Draft</option><option value="archived">Arsip</option></select>
+              <div style={{display:'flex',gap:'6px'}}>
+                <button className="delete-product" style={{background:'#e6e0d9',color:'#4d3b2d'}} onClick={() => { setEditingProductId(product.id); setProductForm({ name: product.name, price: String(product.price), stock: String(product.stock), description: product.description || "", image: null }); setImagePreview(product.image_url || ""); setShowProductForm(true); }}>Ubah</button>
+                <button className="delete-product" onClick={() => onDelete(product.id, product.name)}>Hapus</button>
+              </div>
+            </div>
+            {editingProductId === product.id && <FormElement />}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 function ReportsSection({ orders, chartData, chartPoints, chartMax, reportRange, setReportRange, revenue, onUpdateOrder }: { orders: Order[]; chartData: Array<{ label: string; value: number }>; chartPoints: string; chartMax: number; reportRange: 7 | 30 | 0; setReportRange: (value: 7 | 30 | 0) => void; revenue: number; onUpdateOrder: (id: string, changes: OrderChanges) => void }) { return <section className="admin-panel full-panel"><div className="panel-heading"><div><h2>Laporan penjualan</h2><p>Ringkasan transaksi dan performa penjualan</p></div><select className="filter-select" value={reportRange} onChange={(event) => setReportRange(Number(event.target.value) as 7 | 30 | 0)}><option value="7">7 hari terakhir</option><option value="30">30 hari terakhir</option><option value="0">Semua data</option></select></div><div className="report-cards"><div><span>Transaksi dibayar</span><strong>{orders.filter((order) => order.payment_status === "paid").length}</strong></div><div><span>Nilai penjualan</span><strong>{money(revenue)}</strong></div><div><span>Rata-rata order</span><strong>{money(orders.length ? Math.round(revenue / Math.max(orders.filter((order) => order.payment_status === "paid").length, 1)) : 0)}</strong></div></div><SalesChart data={chartData} points={chartPoints} max={chartMax} /><div className="report-table"><h3>Rincian order</h3><OrderTable orders={orders} onUpdate={onUpdateOrder} /></div></section>; }
 
 function Stat({ label, value, note, icon, tone }: { label: string; value: string; note: string; icon: string; tone: string }) { return <div className="stat-card"><div><span>{label}</span><strong>{value}</strong><small>{note}</small></div><i className={`stat-icon ${tone}`}>{icon}</i></div>; }
-function OrderTable({ orders, onUpdate }: { orders: Order[]; onUpdate: (id: string, changes: OrderChanges) => void }) { return <div className="order-table">{orders.length === 0 ? <div className="empty-table">Belum ada pesanan tercatat.</div> : <><div className="order-table-head"><span>Invoice</span><span>Customer</span><span>Total</span><span>Status order</span><span>Pembayaran</span></div>{orders.map((order) => <div className="order-table-row" key={order.id}><span><strong>#{order.order_number}</strong><small>{date(order.created_at)}</small></span><span>{order.customer_name}<small>{order.customer_phone}</small></span><span>{money(order.total)}</span><select value={order.status} onChange={(event) => onUpdate(order.id, { status: event.target.value })}>{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><select value={order.payment_status} onChange={(event) => onUpdate(order.id, { payment_status: event.target.value })}>{Object.entries(paymentLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>)}</>}</div>; }
+function OrderTable({ orders, onUpdate }: { orders: Order[]; onUpdate: (id: string, changes: OrderChanges) => void }) { return <div className="order-table">{orders.length === 0 ? <div className="empty-table">Belum ada pesanan tercatat.</div> : <><div className="order-table-head"><span>Invoice</span><span>Customer</span><span>Total</span><span>Status order</span><span>Pembayaran</span></div>{orders.map((order) => <div className="order-table-row" key={order.id}><span><strong>#{order.order_number}</strong><small>{date(order.created_at)}</small></span><span>{order.customer_name}<small>{order.customer_phone}</small></span><span>{money(order.total)}</span><select value={order.status} disabled={order.payment_status !== "paid"} onChange={(event) => onUpdate(order.id, { status: event.target.value })}>{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><select value={order.payment_status} onChange={(event) => onUpdate(order.id, { payment_status: event.target.value })}>{Object.entries(paymentLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>)}</>}</div>; }
