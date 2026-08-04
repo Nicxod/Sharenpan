@@ -53,7 +53,10 @@ export default function AuthModal({
       });
       if (error) setMessage(error.message);
       else if (!data.session) setMessage("Akun dibuat. Cek email untuk konfirmasi, lalu masuk.");
-      else await redirectByRole(supabase);
+      else {
+        onSuccess?.();
+        await redirectByRole(supabase);
+      }
     } else {
       let loginEmail = identifier.trim().toLowerCase();
       if (!loginEmail.includes("@")) {

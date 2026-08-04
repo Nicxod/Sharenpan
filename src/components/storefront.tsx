@@ -73,6 +73,12 @@ function getProductGallery(product: StorefrontProduct) {
   ];
 }
 
+function getVariantPrice(product: StorefrontProduct, size: "full" | "half" | "quarter") {
+  const isPlum = product.name.toLowerCase().includes("plum") || product.name.toLowerCase().includes("prune") || product.categorySlug === "lapis-plum";
+  if (isPlum) return size === "full" ? 400000 : size === "half" ? 210000 : 110000;
+  return size === "full" ? 300000 : size === "half" ? 160000 : 80000;
+}
+
 export default function Storefront({
   products,
   databaseStatus,
@@ -109,7 +115,6 @@ export default function Storefront({
   const [promoError, setPromoError] = useState("");
 
   const [leadMagnetOpen, setLeadMagnetOpen] = useState(false);
-  const [leadMagnetContact, setLeadMagnetContact] = useState("");
   const [waWidgetOpen, setWaWidgetOpen] = useState(false);
   const [isGiftOption, setIsGiftOption] = useState(false);
   const [giftDetails, setGiftDetails] = useState({ ribbon: "Pita Emas (Gold)", sender: "", recipient: "", cardMessage: "" });
@@ -136,18 +141,30 @@ export default function Storefront({
   useEffect(() => {
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => {
-      if (data.user) setUser({ id: data.user.id, email: data.user.email });
+      if (data.user) {
+        setUser({ id: data.user.id, email: data.user.email });
+        if (localStorage.getItem("sharenpan_pending_welcome25k") === "true") {
+          localStorage.removeItem("sharenpan_pending_welcome25k");
+          handleApplyPromo("WELCOME25K");
+          showToast("Voucher Rp25.000 berhasil dipasang di keranjang!");
+        }
+      }
     });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ? { id: session.user.id, email: session.user.email } : null);
+      if (session?.user && localStorage.getItem("sharenpan_pending_welcome25k") === "true") {
+        localStorage.removeItem("sharenpan_pending_welcome25k");
+        handleApplyPromo("WELCOME25K");
+        showToast("Voucher Rp25.000 berhasil dipasang di keranjang!");
+      }
     });
 
     if (typeof window !== "undefined") {
-      const seen = localStorage.getItem("sharenpan_lead_seen");
-      if (!seen) {
-        const timer = setTimeout(() => setLeadMagnetOpen(true), 2500);
-        return () => clearTimeout(timer);
-      }
+      const timer = setTimeout(async () => {
+        const currentUser = (await supabase.auth.getUser()).data.user;
+        if (!currentUser) setLeadMagnetOpen(true);
+      }, 2500);
+      return () => clearTimeout(timer);
     }
 
     return () => listener.subscription.unsubscribe();
@@ -259,8 +276,24 @@ export default function Storefront({
     setPromoError("");
     setPromoMessage("");
 
+    if (code === "WELCOME25K") {
+      const supabase = createClient();
+      const currentUser = user || (await supabase.auth.getUser()).data.user;
+      if (!currentUser) {
+        setPromoError("Daftar akun terlebih dahulu untuk mendapatkan voucher Rp25.000.");
+        setAuthOpen(true);
+        return;
+      }
+      const { count } = await supabase.from("orders").select("id", { count: "exact", head: true }).eq("user_id", currentUser.id);
+      if ((count || 0) > 0) {
+        setPromoError("Voucher ini hanya berlaku untuk pesanan pertama.");
+        return;
+      }
+    }
+
     const localPromos: Record<string, { type: "percent" | "fixed"; value: number; label: string; minCart?: number }> = {
       WELCOME10: { type: "percent", value: 10, label: "Diskon 10% Spesial Pelanggan Baru" },
+      WELCOME25K: { type: "fixed", value: 25000, label: "Potongan Rp25.000 untuk pelanggan baru" },
       SHARENPAN50K: { type: "fixed", value: 50000, label: "Potongan Rp50.000 (Min. Belanja Rp200.000)", minCart: 200000 },
       LEZAT20K: { type: "fixed", value: 20000, label: "Potongan Langsung Rp20.000" },
     };
@@ -295,7 +328,7 @@ export default function Storefront({
       //
     }
 
-    setPromoError(`Kode voucher "${code}" tidak valid. Coba: WELCOME10 atau SHARENPAN50K`);
+    setPromoError(`Kode voucher "${code}" tidak valid. Coba: WELCOME25K atau SHARENPAN50K`);
   }
 
   async function submitCheckout(event: React.FormEvent<HTMLFormElement>) {
@@ -516,7 +549,7 @@ export default function Storefront({
               </div>
               <span>
                 <strong>1.200+ pelanggan puas</strong>
-                <small>freshly baked since 2014</small>
+                <small>freshly baked since 2010</small>
               </span>
             </div>
           </div>
@@ -550,7 +583,7 @@ export default function Storefront({
             <img src="/assets/products/lapis-plum-side.jpg" alt="Tekstur & lapisan lapis legit Sharenpan" />
             <span className="story-card">
               EST.
-              <strong>2014</strong>
+              <strong>2010</strong>
             </span>
           </div>
           <div className="story-copy">
@@ -624,7 +657,7 @@ export default function Storefront({
             <span>real butter</span>
           </div>
           <div>
-            <strong>2014</strong>
+            <strong>2010</strong>
             <span>dipercaya sejak</span>
           </div>
         </section>
@@ -1000,7 +1033,7 @@ export default function Storefront({
                   type="text"
                   value={promoInput}
                   onChange={(e) => setPromoInput(e.target.value)}
-                  placeholder="Kode: WELCOME10"
+                  placeholder="Kode: WELCOME25K"
                   style={{ flex: 1, padding: "6px 10px", borderRadius: "6px", border: "1px solid #d8c8b8", fontSize: "12px", textTransform: "uppercase" }}
                 />
                 <button
@@ -1376,7 +1409,7 @@ export default function Storefront({
                 </div>
 
                 <div className="detail-info-box">
-                  <p className="eyebrow">Resep Warisan Sejak 2014</p>
+                  <p className="eyebrow">Resep Warisan Sejak 2010</p>
                   <h2>{detailProduct.name}</h2>
                   <p className="detail-description">{detailProduct.description}</p>
 
@@ -1393,7 +1426,7 @@ export default function Storefront({
                         }}
                       >
                         <strong>Full Size (20 × 20 cm)</strong>
-                        <small>Berat ~1.000g • {money(detailProduct.price)}</small>
+                        <small>Berat ~1.000g • {money(getVariantPrice(detailProduct, "full"))}</small>
                       </button>
                       <button
                         type="button"
@@ -1404,7 +1437,7 @@ export default function Storefront({
                         }}
                       >
                         <strong>Half Size (10 × 20 cm)</strong>
-                        <small>Berat ~500g • {money(Math.round(detailProduct.price * 0.55))}</small>
+                        <small>Berat ~500g • {money(getVariantPrice(detailProduct, "half"))}</small>
                       </button>
                       <button
                         type="button"
@@ -1415,7 +1448,7 @@ export default function Storefront({
                         }}
                       >
                         <strong>1/4 Size (10 × 10 cm)</strong>
-                        <small>Berat ~250g • {money(Math.round(detailProduct.price * 0.35))}</small>
+                        <small>Berat ~250g • {money(getVariantPrice(detailProduct, "quarter"))}</small>
                       </button>
                     </div>
                   </div>
@@ -1437,13 +1470,7 @@ export default function Storefront({
                   <div className="detail-price-tag">
                     <span>Total:</span>
                     <strong>
-                      {money(
-                        (detailSize === "full"
-                          ? detailProduct.price
-                          : detailSize === "half"
-                            ? Math.round(detailProduct.price * 0.55)
-                            : Math.round(detailProduct.price * 0.35)) * detailQty
-                      )}
+                      {money(getVariantPrice(detailProduct, detailSize) * detailQty)}
                     </strong>
                   </div>
 
@@ -1456,12 +1483,7 @@ export default function Storefront({
                   <button
                     className="primary-button"
                     onClick={() => {
-                      const itemPrice =
-                        detailSize === "full"
-                          ? detailProduct.price
-                          : detailSize === "half"
-                            ? Math.round(detailProduct.price * 0.55)
-                            : Math.round(detailProduct.price * 0.35);
+                      const itemPrice = getVariantPrice(detailProduct, detailSize);
                       const sizeLabel =
                         detailSize === "full"
                           ? "20x20 cm"
@@ -1509,7 +1531,7 @@ export default function Storefront({
               </p>
               <div className="wa-quick-chips">
                 <a
-                  href="https://wa.me/62895321759440?text=Halo%20Sharenpan%2C%20saya%20mau%20tanya%20paket%20hampers%20lapis%20legit"
+                  href="https://wa.me/6281218826956?text=Halo%20Sharenpan%2C%20saya%20mau%20tanya%20paket%20hampers%20lapis%20legit"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="wa-chip"
@@ -1517,7 +1539,7 @@ export default function Storefront({
                   🎁 Tanya Paket Hampers
                 </a>
                 <a
-                  href="https://wa.me/62895321759440?text=Halo%20Sharenpan%2C%20apakah%20bisa%20kirim%20ke%20kota%20saya%3F"
+                  href="https://wa.me/6281218826956?text=Halo%20Sharenpan%2C%20apakah%20bisa%20kirim%20ke%20kota%20saya%3F"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="wa-chip"
@@ -1525,7 +1547,7 @@ export default function Storefront({
                   🚚 Cek Pengiriman CS
                 </a>
                 <a
-                  href="https://wa.me/62895321759440?text=Halo%20Sharenpan%2C%20saya%20mau%20konsultasi%20pesanan%20khusus"
+                  href="https://wa.me/6281218826956?text=Halo%20Sharenpan%2C%20saya%20mau%20konsultasi%20pesanan%20khusus"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="wa-chip"
@@ -1536,12 +1558,12 @@ export default function Storefront({
             </div>
             <div className="wa-chat-footer">
               <a
-                href="https://wa.me/62895321759440?text=Halo%20Sharenpan%2C%20saya%20ingin%20bertanya%20seputar%20lapis%20legit"
+                href="https://wa.me/6281218826956?text=Halo%20Sharenpan%2C%20saya%20ingin%20bertanya%20seputar%20lapis%20legit"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="wa-send-btn"
               >
-                Mulai Chat WhatsApp (+62 895-3217-59440) 💬
+                Mulai Chat WhatsApp (+62 812-1882-6956) 💬
               </a>
             </div>
           </div>
@@ -1556,7 +1578,7 @@ export default function Storefront({
         </button>
       </div>}
 
-      {/* LEAD MAGNET POPUP MODAL (WELCOME10 VOUCHER) */}
+      {/* WELCOME VOUCHER POPUP */}
       {leadMagnetOpen && (
         <div className="modal-backdrop" role="presentation" onClick={() => setLeadMagnetOpen(false)}>
           <div className="lead-magnet-modal" role="dialog" onClick={(e) => e.stopPropagation()}>
@@ -1564,42 +1586,27 @@ export default function Storefront({
               className="modal-close"
               onClick={() => {
                 setLeadMagnetOpen(false);
-                if (typeof window !== "undefined") localStorage.setItem("sharenpan_lead_seen", "true");
               }}
             >
               ×
             </button>
             <div className="lead-magnet-content">
-              <span className="lead-badge">🎁 HADIAH SPESIAL PENGUNJUNG BARU</span>
-              <h2>Dapatkan Diskon 10%</h2>
+              <span className="lead-badge">🎁 HADIAH UNTUK MEMBER BARU</span>
+              <h2>Dapatkan Voucher Rp25.000</h2>
               <p className="lead-desc">
-                Masukkan WhatsApp atau email kamu untuk mengklaim kode voucher <strong>WELCOME10</strong> secara instan untuk pesanan pertamamu di Sharenpan.
+                Daftar akun Sharenpan untuk mendapatkan voucher <strong>WELCOME25K</strong> dan potongan Rp25.000 untuk pembelian lapis legit.
               </p>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (!leadMagnetContact.trim()) return;
-                  if (typeof window !== "undefined") localStorage.setItem("sharenpan_lead_seen", "true");
-                  handleApplyPromo("WELCOME10");
+              <div className="lead-form">
+                <button type="button" className="primary-button full-button" style={{ marginTop: "10px" }} onClick={() => {
+                  localStorage.setItem("sharenpan_pending_welcome25k", "true");
                   setLeadMagnetOpen(false);
-                  showToast("🎉 Voucher WELCOME10 berhasil diklaim & dipasang!");
-                }}
-                className="lead-form"
-              >
-                <input
-                  type="text"
-                  placeholder="Nomor WhatsApp / Email Anda"
-                  value={leadMagnetContact}
-                  onChange={(e) => setLeadMagnetContact(e.target.value)}
-                  required
-                  className="lead-input"
-                />
-                <button type="submit" className="primary-button full-button" style={{ marginTop: "10px" }}>
-                  Klaim Diskon 10% Sekarang ➔
+                  setAuthOpen(true);
+                }}>
+                  Daftar & Klaim Voucher Rp25.000 →
                 </button>
-              </form>
+              </div>
               <small className="lead-footer-note">
-                🔒 Data aman. Tanpa spam, langsung dipotong di keranjang!
+                🔒 Voucher hanya berlaku setelah akun berhasil dibuat dan untuk pembelian pertama.
               </small>
             </div>
           </div>

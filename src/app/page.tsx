@@ -12,7 +12,7 @@ const fallbackProducts: StorefrontProduct[] = [
     id: "lapis-ori-block",
     name: "Lapis Legit Original Premium (Full Block)",
     description: "Lapis legit original resep warisan dipanggang selapis demi selapis dengan 100% butter Wijsman murni. Lembut, gurih, dan legit.",
-    price: 285000,
+    price: 300000,
     stock: 20,
     imageUrl: "/assets/products/lapis-ori-block.jpg",
     tag: "Terlaris",
@@ -26,7 +26,7 @@ const fallbackProducts: StorefrontProduct[] = [
     id: "lapis-ori-box-half",
     name: "Lapis Legit Original (Dus Reguler 1/2 Loyang)",
     description: "Kemasan dus kraft reguler setengah loyang (10×20 cm) dengan jendela transparan + gratis pisau kue. Pilihan praktis harian.",
-    price: 150000,
+    price: 160000,
     stock: 25,
     imageUrl: "/assets/products/lapis-ori-box-half.jpg",
     tag: "Favorit",
@@ -70,7 +70,7 @@ const fallbackProducts: StorefrontProduct[] = [
     id: "lapis-plum-full",
     name: "Lapis Legit Varian Buah Plum (1 Loyang Full)",
     description: "Lapis legit varian buah plum 1 loyang utuh (20×20 cm). Rasa manis asam segar buah plum asli menyatu dalam kelembutan lapis legit.",
-    price: 325000,
+    price: 400000,
     stock: 12,
     imageUrl: "/assets/products/lapis-plum-full.jpg",
     tag: "Favorit",
@@ -84,7 +84,7 @@ const fallbackProducts: StorefrontProduct[] = [
     id: "lapis-plum-quarter",
     name: "Lapis Legit Varian Buah Plum (1/4 Loyang)",
     description: "Lapis legit varian buah plum dipotong 1/4 loyang (10×10 cm). Pilihan hemat dan pas untuk porsi santai bersama.",
-    price: 95000,
+    price: 110000,
     stock: 18,
     imageUrl: "/assets/products/lapis-plum-quarter.jpg",
     tag: "Hemat",
@@ -98,7 +98,7 @@ const fallbackProducts: StorefrontProduct[] = [
     id: "lapis-plum-side",
     name: "Lapis Legit Varian Buah Plum (Layer Premium)",
     description: "Tampak samping keindahan belasan lapisan lapis legit dengan taburan & selipan buah plum pilihan yang berlimpah.",
-    price: 325000,
+    price: 400000,
     stock: 10,
     imageUrl: "/assets/products/lapis-plum-side.jpg",
     tag: "Premium",
@@ -126,6 +126,16 @@ function resolveRealProductImage(name: string, rawUrl?: string | null): string {
   if (n.includes("cut") || n.includes("bite") || n.includes("potong")) return "/assets/products/lapis-ori-box-cubes.jpg";
   if (n.includes("slice") || n.includes("pack")) return "/assets/products/lapis-slice-packs.jpg";
   return "/assets/products/lapis-ori-block.jpg";
+}
+
+function configuredPrice(name: string, currentPrice: number) {
+  const normalized = name.toLowerCase();
+  const isPlum = normalized.includes("plum") || normalized.includes("prune");
+  const isQuarter = normalized.includes("quarter") || normalized.includes("1/4");
+  const isHalf = normalized.includes("half") || normalized.includes("1/2");
+  if (isPlum) return isQuarter ? 110000 : isHalf ? 210000 : 400000;
+  if (normalized.includes("original") || isQuarter || isHalf) return isQuarter ? 80000 : isHalf ? 160000 : 300000;
+  return currentPrice;
 }
 
 export default async function Home() {
@@ -162,7 +172,7 @@ export default async function Home() {
             id: product.id,
             name: product.name,
             description: product.description ?? "Lapis legit premium Sharenpan resep warisan.",
-            price: product.price,
+            price: configuredPrice(product.name, product.price),
             stock: product.stock,
             imageUrl: resolveRealProductImage(product.name, product.image_url),
             tag: index === 0 ? "Terlaris" : isPlum ? "Favorit" : "Praktis",

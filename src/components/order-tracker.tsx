@@ -307,8 +307,8 @@ export default function OrderTracker() {
       <footer className="storefront-footer" style={{ marginTop: "60px" }}>
         <div className="content-width" style={{ textAlign: "center", padding: "28px 0", color: "#a1795a", fontSize: "13px" }}>
           © 2024 Sharenpan — Lapis Legit Premium. Ada pertanyaan?{" "}
-          <a href="https://wa.me/62895321759440" target="_blank" rel="noopener noreferrer" style={{ color: "var(--brown)", fontWeight: 700 }}>
-            Hubungi kami via WhatsApp (+62 895-3217-59440)
+          <a href="https://wa.me/6281218826956" target="_blank" rel="noopener noreferrer" style={{ color: "var(--brown)", fontWeight: 700 }}>
+            Hubungi kami via WhatsApp (+62 812-1882-6956)
           </a>
         </div>
       </footer>
