@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-type Product = { id: string; name: string; slug: string; price: number; stock: number; status: string; image_url: string | null; created_at: string };
+type Product = { id: string; name: string; slug: string; description?: string | null; price: number; stock: number; status: string; image_url: string | null; created_at: string };
 type Order = { id: string; order_number: string; customer_name: string; customer_email: string | null; customer_phone: string; total: number; status: string; payment_status: string; payment_receipt_url: string | null; created_at: string };
 type OrderItem = { product_id: string | null; product_name: string; quantity: number; subtotal: number };
 type Customer = { id: string; full_name: string | null; phone: string | null; role: string; created_at: string };

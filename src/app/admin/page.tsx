@@ -13,7 +13,7 @@ export default async function AdminPage() {
   if (profile?.role !== "admin") redirect("/?admin=forbidden");
 
   const [{ data: products }, { data: orders }, { data: orderItems }, { data: customers }, { data: feedback }] = await Promise.all([
-    supabase.from("products").select("id, name, slug, price, stock, status, image_url, created_at").order("created_at", { ascending: false }),
+    supabase.from("products").select("id, name, slug, description, price, stock, status, image_url, created_at").order("created_at", { ascending: false }),
     supabase.from("orders").select("id, order_number, customer_name, customer_email, customer_phone, total, status, payment_status, payment_receipt_url, payment_reference, created_at").order("created_at", { ascending: false }).limit(500),
     supabase.from("order_items").select("product_id, product_name, quantity, subtotal").limit(2000),
     supabase.from("profiles").select("id, full_name, phone, role, created_at").order("created_at", { ascending: false }).limit(1000),
