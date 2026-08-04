@@ -15,6 +15,8 @@ export type StorefrontProduct = {
   imageUrl: string;
   tag: string;
   type: "classic" | "premium";
+  categorySlug?: string;
+  categoryName?: string;
   rating: string;
   reviews: string;
 };
@@ -25,8 +27,8 @@ export type StorefrontStatus = {
   detail: string;
 };
 
-type CartItem = StorefrontProduct & { quantity: number };
-type Filter = "all" | "best" | "classic" | "premium";
+type CartItem = StorefrontProduct & { quantity: number; productId?: string };
+type Filter = "all" | "lapis-original" | "lapis-plum";
 
 const money = (value: number) => `Rp${value.toLocaleString("id-ID")}`;
 
@@ -46,6 +48,37 @@ function StatusPill({ status }: { status: StorefrontStatus }) {
   );
 }
 
+function getProductGallery(product: StorefrontProduct) {
+  const isPlum =
+    product.name.toLowerCase().includes("plum") ||
+    product.name.toLowerCase().includes("prune") ||
+    product.categorySlug === "lapis-plum";
+
+  if (isPlum) {
+    return [
+      { url: "/assets/products/lapis-plum-full.jpg", label: "Full Loyang (20 × 20 cm)" },
+      { url: "/assets/products/lapis-plum-half.jpg", label: "Half Size (10 × 20 cm)" },
+      { url: "/assets/products/lapis-plum-quarter.jpg", label: "1/4 Loyang (10 × 10 cm)" },
+      { url: "/assets/products/lapis-plum-side.jpg", label: "Tampak Samping (Layer View)" },
+    ];
+  }
+
+  return [
+    { url: "/assets/products/lapis-ori-block.jpg", label: "Full Block (20 × 20 cm)" },
+    { url: "/assets/products/lapis-ori-box-half.jpg", label: "Half Size Dus Reguler (10 × 20 cm)" },
+    { url: "/assets/products/lapis-ori-quarter.jpg", label: "1/4 Size (10 × 10 cm)" },
+    { url: "/assets/products/lapis-ori-box-cubes.jpg", label: "Potongan Box Bite-Size" },
+    { url: "/assets/products/lapis-slice-packs.jpg", label: "Kemasan Slice Individual" },
+    { url: "/assets/products/lapis-ori-half.jpg", label: "Potongan Setengah Loyang" },
+  ];
+}
+
+function getVariantPrice(product: StorefrontProduct, size: "full" | "half" | "quarter") {
+  const isPlum = product.name.toLowerCase().includes("plum") || product.name.toLowerCase().includes("prune") || product.categorySlug === "lapis-plum";
+  if (isPlum) return size === "full" ? 400000 : size === "half" ? 210000 : 110000;
+  return size === "full" ? 300000 : size === "half" ? 160000 : 80000;
+}
+
 export default function Storefront({
   products,
   databaseStatus,
@@ -55,6 +88,7 @@ export default function Storefront({
 }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [cartHydrated, setCartHydrated] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [toast, setToast] = useState("");
@@ -66,8 +100,9 @@ export default function Storefront({
   const [checkout, setCheckout] = useState({ name: "", phone: "", address: "", city: "", notes: "", deliveryDate: "" });
   const [deliveryDateError, setDeliveryDateError] = useState("");
   const [detailProduct, setDetailProduct] = useState<StorefrontProduct | null>(null);
-  const [detailSize, setDetailSize] = useState<"full" | "half">("full");
+  const [detailSize, setDetailSize] = useState<"full" | "half" | "quarter">("full");
   const [detailQty, setDetailQty] = useState(1);
+  const [detailImageIndex, setDetailImageIndex] = useState(0);
 
   const [promoInput, setPromoInput] = useState("");
   const [appliedPromo, setAppliedPromo] = useState<{
@@ -80,26 +115,56 @@ export default function Storefront({
   const [promoError, setPromoError] = useState("");
 
   const [leadMagnetOpen, setLeadMagnetOpen] = useState(false);
-  const [leadMagnetContact, setLeadMagnetContact] = useState("");
   const [waWidgetOpen, setWaWidgetOpen] = useState(false);
   const [isGiftOption, setIsGiftOption] = useState(false);
   const [giftDetails, setGiftDetails] = useState({ ribbon: "Pita Emas (Gold)", sender: "", recipient: "", cardMessage: "" });
 
   useEffect(() => {
+    let savedCart: string | null = null;
+    try {
+      savedCart = localStorage.getItem("sharenpan_cart");
+    } catch {
+      localStorage.removeItem("sharenpan_cart");
+    }
+    window.setTimeout(() => {
+      if (savedCart) {
+        try { setCart(JSON.parse(savedCart) as CartItem[]); } catch { /* Ignore malformed saved cart. */ }
+      }
+      setCartHydrated(true);
+    }, 0);
+  }, []);
+
+  useEffect(() => {
+    if (cartHydrated) localStorage.setItem("sharenpan_cart", JSON.stringify(cart));
+  }, [cart, cartHydrated]);
+
+  useEffect(() => {
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => {
-      if (data.user) setUser({ id: data.user.id, email: data.user.email });
+      if (data.user) {
+        setUser({ id: data.user.id, email: data.user.email });
+        if (localStorage.getItem("sharenpan_pending_welcome25k") === "true") {
+          localStorage.removeItem("sharenpan_pending_welcome25k");
+          handleApplyPromo("WELCOME25K");
+          showToast("Voucher Rp25.000 berhasil dipasang di keranjang!");
+        }
+      }
     });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ? { id: session.user.id, email: session.user.email } : null);
+      if (session?.user && localStorage.getItem("sharenpan_pending_welcome25k") === "true") {
+        localStorage.removeItem("sharenpan_pending_welcome25k");
+        handleApplyPromo("WELCOME25K");
+        showToast("Voucher Rp25.000 berhasil dipasang di keranjang!");
+      }
     });
 
     if (typeof window !== "undefined") {
-      const seen = localStorage.getItem("sharenpan_lead_seen");
-      if (!seen) {
-        const timer = setTimeout(() => setLeadMagnetOpen(true), 2500);
-        return () => clearTimeout(timer);
-      }
+      const timer = setTimeout(async () => {
+        const currentUser = (await supabase.auth.getUser()).data.user;
+        if (!currentUser) setLeadMagnetOpen(true);
+      }, 2500);
+      return () => clearTimeout(timer);
     }
 
     return () => listener.subscription.unsubscribe();
@@ -110,8 +175,22 @@ export default function Storefront({
     () =>
       products.filter((product) => {
         if (filter === "all") return true;
-        if (filter === "best") return product.tag === "Terlaris";
-        return product.type === filter;
+        if (filter === "lapis-original") {
+          return (
+            product.categorySlug === "lapis-original" ||
+            product.name.toLowerCase().includes("original") ||
+            product.name.toLowerCase().includes("ori") ||
+            (!product.name.toLowerCase().includes("plum") && !product.name.toLowerCase().includes("prune"))
+          );
+        }
+        if (filter === "lapis-plum") {
+          return (
+            product.categorySlug === "lapis-plum" ||
+            product.name.toLowerCase().includes("plum") ||
+            product.name.toLowerCase().includes("prune")
+          );
+        }
+        return true;
       }),
     [filter, products],
   );
@@ -126,7 +205,7 @@ export default function Storefront({
     window.setTimeout(() => setToast(""), 2400);
   }
 
-  function addToCart(product: StorefrontProduct) {
+  function addToCart(product: StorefrontProduct & { productId?: string }) {
     if (!user) {
       setAuthOpen(true);
       showToast("Masuk atau daftar dulu untuk memesan");
@@ -197,8 +276,24 @@ export default function Storefront({
     setPromoError("");
     setPromoMessage("");
 
+    if (code === "WELCOME25K") {
+      const supabase = createClient();
+      const currentUser = user || (await supabase.auth.getUser()).data.user;
+      if (!currentUser) {
+        setPromoError("Daftar akun terlebih dahulu untuk mendapatkan voucher Rp25.000.");
+        setAuthOpen(true);
+        return;
+      }
+      const { count } = await supabase.from("orders").select("id", { count: "exact", head: true }).eq("user_id", currentUser.id);
+      if ((count || 0) > 0) {
+        setPromoError("Voucher ini hanya berlaku untuk pesanan pertama.");
+        return;
+      }
+    }
+
     const localPromos: Record<string, { type: "percent" | "fixed"; value: number; label: string; minCart?: number }> = {
       WELCOME10: { type: "percent", value: 10, label: "Diskon 10% Spesial Pelanggan Baru" },
+      WELCOME25K: { type: "fixed", value: 25000, label: "Potongan Rp25.000 untuk pelanggan baru" },
       SHARENPAN50K: { type: "fixed", value: 50000, label: "Potongan Rp50.000 (Min. Belanja Rp200.000)", minCart: 200000 },
       LEZAT20K: { type: "fixed", value: 20000, label: "Potongan Langsung Rp20.000" },
     };
@@ -217,7 +312,7 @@ export default function Storefront({
 
     try {
       const supabase = createClient();
-      const { data } = await supabase.from("promo_codes").select("*").eq("code", code).eq("is_active", true).single();
+      const { data } = await supabase.from("promo_codes").select("*").eq("code", code).eq("active", true).single();
       if (data) {
         setAppliedPromo({
           code: data.code,
@@ -233,7 +328,7 @@ export default function Storefront({
       //
     }
 
-    setPromoError(`Kode voucher "${code}" tidak valid. Coba: WELCOME10 atau SHARENPAN50K`);
+    setPromoError(`Kode voucher "${code}" tidak valid. Coba: WELCOME25K atau SHARENPAN50K`);
   }
 
   async function submitCheckout(event: React.FormEvent<HTMLFormElement>) {
@@ -284,7 +379,7 @@ export default function Storefront({
     if (error || !order) {
       setCheckoutError(error?.message || "Pesanan belum dapat dibuat.");
     } else {
-      const { error: itemsError } = await supabase.from("order_items").insert(cart.map((item) => ({ order_id: order.id, product_id: item.id.startsWith("fallback-") ? null : item.id, product_name: item.name, unit_price: item.price, quantity: item.quantity, subtotal: item.price * item.quantity })));
+      const { error: itemsError } = await supabase.from("order_items").insert(cart.map((item) => ({ order_id: order.id, product_id: (item.productId || item.id).startsWith("fallback-") ? null : (item.productId || item.id), product_name: item.name, unit_price: item.price, quantity: item.quantity, subtotal: item.price * item.quantity })));
       if (itemsError) setCheckoutError(itemsError.message);
       else {
         setCart([]);
@@ -454,7 +549,7 @@ export default function Storefront({
               </div>
               <span>
                 <strong>1.200+ pelanggan puas</strong>
-                <small>freshly baked since 2014</small>
+                <small>freshly baked since 2010</small>
               </span>
             </div>
           </div>
@@ -482,113 +577,35 @@ export default function Storefront({
           </div>
         </section>
 
-        <section className="featured-section content-width" id="produk">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Best seller minggu ini</p>
-              <h2>
-                Yang bikin ingin
-                <br />
-                <em>tambah lagi.</em>
-              </h2>
-            </div>
-            <span className="section-count">{products.length} pilihan rasa</span>
+        {/* 2 ── BRAND STORY (naik ke atas, kenalan dulu) */}
+        <section className="story-section content-width" id="cerita">
+          <div className="story-image">
+            <img src="/assets/products/lapis-plum-side.jpg" alt="Tekstur & lapisan lapis legit Sharenpan" />
+            <span className="story-card">
+              EST.
+              <strong>2010</strong>
+            </span>
           </div>
-          <div className="filter-row" role="tablist" aria-label="Filter produk">
-            {(["all", "best", "classic", "premium"] as Filter[]).map(
-              (item) => (
-                <button
-                  key={item}
-                  className={filter === item ? "filter active" : "filter"}
-                  onClick={() => setFilter(item)}
-                >
-                  {item === "all"
-                    ? "Semua"
-                    : item === "best"
-                      ? "Terlaris"
-                      : item === "classic"
-                        ? "Classic"
-                        : "Premium"}
-                </button>
-              ),
-            )}
-          </div>
-          <div className="product-grid">
-            {products.length === 0 ? (
-              /* Skeleton Loading Cards */
-              Array.from({ length: 3 }).map((_, i) => (
-                <div className="product-card skeleton-card" key={i} aria-hidden="true">
-                  <div className="skeleton-image" />
-                  <div className="product-info" style={{ gap: "10px", display: "flex", flexDirection: "column", padding: "16px" }}>
-                    <div className="skeleton-line" style={{ width: "40%", height: "10px" }} />
-                    <div className="skeleton-line" style={{ width: "75%", height: "16px" }} />
-                    <div className="skeleton-line" style={{ width: "90%", height: "10px" }} />
-                    <div className="skeleton-line" style={{ width: "90%", height: "10px" }} />
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "8px" }}>
-                      <div className="skeleton-line" style={{ width: "35%", height: "18px" }} />
-                      <div className="skeleton-circle" />
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              filteredProducts.map((product) => (
-                <article className="product-card" key={product.id}>
-                  <div className="product-image" onClick={() => { setDetailProduct(product); setDetailSize("full"); setDetailQty(1); }} style={{ cursor: "pointer" }}>
-                    <span className="product-tag">{product.tag}</span>
-                    <img src={product.imageUrl} alt={product.name} />
-                  </div>
-                  <div className="product-info">
-                    <div className="product-meta">
-                      <span className="rating">★★★★★ <b>{product.rating}</b></span>
-                      <small>Resep Tradisional Fresh</small>
-                    </div>
-                    <h3 onClick={() => { setDetailProduct(product); setDetailSize("full"); setDetailQty(1); }} style={{ cursor: "pointer" }}>
-                      {product.name}
-                    </h3>
-                    <p>{product.description}</p>
-                    <div className="product-footer">
-                      <div>
-                        <strong>{money(product.price)}</strong>
-                        <small style={{ color: product.stock <= 15 ? "#a05448" : "inherit", fontWeight: product.stock <= 15 ? "700" : "normal" }}>
-                          {product.stock <= 15 ? `🔥 Sisa ${product.stock} loyang hari ini` : `${product.stock} stok tersedia`}
-                        </small>
-                      </div>
-                      <button
-                        className="add-button"
-                        onClick={() => { setDetailProduct(product); setDetailSize("full"); setDetailQty(1); }}
-                        title="Lihat Detail & Pilih Ukuran"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                </article>
-              ))
-            )}
+          <div className="story-copy">
+            <p className="eyebrow">Dibuat dengan sabar</p>
+            <h2>
+              Bukan sekadar kue,
+              <br />
+              ini <em>warisan rasa.</em>
+            </h2>
+            <p>
+              Di Sharenpan, kami percaya hal-hal baik memang membutuhkan waktu.
+              Setiap lapis dipanggang dengan api kecil dan perhatian penuh—
+              menghasilkan tekstur lembut, aroma butter yang hangat, dan rasa
+              yang tinggal lebih lama.
+            </p>
+            <a className="text-link" href="#produk">
+              Lihat menu lengkap <span>↓</span>
+            </a>
           </div>
         </section>
 
-        <section className="trust-row content-width">
-          <div>
-            <strong>★★★★★</strong>
-            <span>4.9 customer rating</span>
-          </div>
-          <div>
-            <strong>2.500+</strong>
-            <span>lapis legit terjual</span>
-          </div>
-          <div>
-            <strong>100%</strong>
-            <span>real butter</span>
-          </div>
-          <div>
-            <strong>2014</strong>
-            <span>dipercaya sejak</span>
-          </div>
-        </section>
-
-        {/* VIDEO HOMEMADE KITCHEN SECTION */}
+        {/* 3 ── VIDEO HOMEMADE KITCHEN */}
         <section className="desire-section content-width" id="homemade">
           <div className="section-heading desire-heading">
             <div>
@@ -625,55 +642,305 @@ export default function Storefront({
           </div>
         </section>
 
-        <section className="story-section content-width" id="cerita">
-          <div className="story-image">
-            <img src="/assets/lapis-legit.jpg" alt="Tekstur lapis legit Sharenpan" />
-            <span className="story-card">
-              EST.
-              <strong>2014</strong>
-            </span>
+        {/* 4 ── TRUST / STATS — social proof sebelum produk */}
+        <section className="trust-row content-width">
+          <div>
+            <strong>★★★★★</strong>
+            <span>4.9 customer rating</span>
           </div>
-          <div className="story-copy">
-            <p className="eyebrow">Dibuat dengan sabar</p>
-            <h2>
-              Bukan sekadar kue,
+          <div>
+            <strong>2.500+</strong>
+            <span>lapis legit terjual</span>
+          </div>
+          <div>
+            <strong>100%</strong>
+            <span>real butter</span>
+          </div>
+          <div>
+            <strong>2010</strong>
+            <span>dipercaya sejak</span>
+          </div>
+        </section>
+
+        {/* 4.5 ── HALAL CERTIFICATION */}
+        <section className="halal-section content-width">
+          <div className="halal-photo-col">
+            <div className="halal-photo-frame">
+              <img
+                src="/assets/sertifikat-halal.jpg"
+                alt="Sertifikasi Halal MUI Sharenpan"
+                className="halal-photo"
+              />
+              <div className="halal-photo-badge">
+                <span className="halal-moon">☽</span>
+                <span className="halal-badge-text">HALAL</span>
+                <span className="halal-badge-sub">MUI Certified</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="halal-copy-col">
+            <div className="halal-tag-row">
+              <span className="halal-eyebrow-pill">🌙 Tersertifikasi Resmi</span>
+            </div>
+            <h2 className="halal-title">
+              Aman, Bersih,
               <br />
-              ini <em>warisan rasa.</em>
+              <em>& Halal Terjamin.</em>
             </h2>
-            <p>
-              Di Sharenpan, kami percaya hal-hal baik memang membutuhkan waktu.
-              Setiap lapis dipanggang dengan api kecil dan perhatian penuh—
-              menghasilkan tekstur lembut, aroma butter yang hangat, dan rasa
-              yang tinggal lebih lama.
+            <p className="halal-desc">
+              Setiap lapis legit Sharenpan diproduksi dengan bahan-bahan pilihan yang telah
+              melewati proses sertifikasi halal resmi dari Majelis Ulama Indonesia (MUI).
+              Bukan sekadar janji—ini komitmen kami untuk setiap keluarga di Indonesia.
             </p>
-            <a className="text-link" href="#cara-order">
-              Kenali cara order <span>→</span>
+
+            <ul className="halal-points">
+              <li>
+                <span className="halal-check">✓</span>
+                <div>
+                  <strong>Bahan 100% Terseleksi Halal</strong>
+                  <small>Butter Wijsman, telur, dan tepung premium tersertifikasi</small>
+                </div>
+              </li>
+              <li>
+                <span className="halal-check">✓</span>
+                <div>
+                  <strong>Dapur Bersih & Higienis</strong>
+                  <small>Proses produksi sesuai standar kebersihan pangan nasional</small>
+                </div>
+              </li>
+              <li>
+                <span className="halal-check">✓</span>
+                <div>
+                  <strong>Sertifikasi MUI Resmi</strong>
+                  <small>Diakui oleh Badan Penyelenggara Jaminan Produk Halal (BPJPH)</small>
+                </div>
+              </li>
+            </ul>
+
+            <div className="halal-seal-row">
+              <div className="halal-seal">
+                <span className="halal-seal-icon">🌙</span>
+                <div>
+                  <strong>Halal MUI</strong>
+                  <small>No. Sertifikat Resmi</small>
+                </div>
+              </div>
+              <div className="halal-divider" />
+              <div className="halal-seal">
+                <span className="halal-seal-icon">🛡️</span>
+                <div>
+                  <strong>BPJPH</strong>
+                  <small>Terdaftar & Terverifikasi</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* 5 ── PRODUK (pembeli sudah "warm", siap beli) */}
+
+        <section className="featured-section content-width" id="produk">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Best seller minggu ini</p>
+              <h2>
+                Yang bikin ingin
+                <br />
+                <em>tambah lagi.</em>
+              </h2>
+            </div>
+            <span className="section-count">{products.length} pilihan rasa</span>
+          </div>
+          <div className="filter-row" role="tablist" aria-label="Filter produk">
+            {(
+              [
+                { key: "all", label: "✨ Semua Produk" },
+                { key: "lapis-original", label: "🧈 Lapis Legit Original" },
+                { key: "lapis-plum", label: "🍇 Lapis Legit Varian Buah Plum" },
+              ] as const
+            ).map((item) => (
+              <button
+                key={item.key}
+                className={filter === item.key ? "filter active" : "filter"}
+                onClick={() => setFilter(item.key as Filter)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+          <div className="product-grid">
+            {products.length === 0 ? (
+              /* Skeleton Loading Cards */
+              Array.from({ length: 3 }).map((_, i) => (
+                <div className="product-card skeleton-card" key={i} aria-hidden="true">
+                  <div className="skeleton-image" />
+                  <div className="product-info" style={{ gap: "10px", display: "flex", flexDirection: "column", padding: "16px" }}>
+                    <div className="skeleton-line" style={{ width: "40%", height: "10px" }} />
+                    <div className="skeleton-line" style={{ width: "75%", height: "16px" }} />
+                    <div className="skeleton-line" style={{ width: "90%", height: "10px" }} />
+                    <div className="skeleton-line" style={{ width: "90%", height: "10px" }} />
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "8px" }}>
+                      <div className="skeleton-line" style={{ width: "35%", height: "18px" }} />
+                      <div className="skeleton-circle" />
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              filteredProducts.map((product) => (
+                <article className="product-card" key={product.id}>
+                  <div className={`product-image ${product.name.toLowerCase().includes("prune") || product.imageUrl.includes("lapis-plum") ? "portrait-product" : ""}`} onClick={() => { setDetailProduct(product); setDetailSize("full"); setDetailQty(1); }} style={{ cursor: "pointer" }}>
+                    <span className="product-tag">{product.tag}</span>
+                    <img src={product.imageUrl} alt={product.name} />
+                  </div>
+                  <div className="product-info">
+                    <div className="product-meta">
+                      <span className="rating">★★★★★ <b>{product.rating}</b></span>
+                      <small>Resep Tradisional Fresh</small>
+                    </div>
+                    <h3 onClick={() => { setDetailProduct(product); setDetailSize("full"); setDetailQty(1); }} style={{ cursor: "pointer" }}>
+                      {product.name}
+                    </h3>
+                    <p>{product.description}</p>
+                    <div className="product-footer">
+                      <div>
+                        <strong>{money(product.price)}</strong>
+                        <small style={{ color: product.stock <= 15 ? "#a05448" : "inherit", fontWeight: product.stock <= 15 ? "700" : "normal" }}>
+                          {product.stock <= 15 ? `🔥 Sisa ${product.stock} loyang hari ini` : `${product.stock} stok tersedia`}
+                        </small>
+                      </div>
+                      <button
+                        className="add-button"
+                        onClick={() => { setDetailProduct(product); setDetailSize("full"); setDetailQty(1); }}
+                        title="Lihat Detail & Pilih Ukuran"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              ))
+            )}
+          </div>
+        </section>
+
+        {/* 6 ── SPECIAL EDITION HAMPERS (2 CARDS) */}
+        <section className="special-hampers-section content-width" id="hampers">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Pilihan Hampers & Event</p>
+              <h2>
+                Koleksi Hampers <em>Spesial Perayaan.</em>
+              </h2>
+            </div>
+            <span className="section-count">2 Pilihan Hampers</span>
+          </div>
+
+          <div className="hampers-grid-container">
+            {/* Card 1: Edisi Imlek / Chinese New Year Event */}
+            <article className="hampers-card-item">
+              <div className="hampers-media-frame">
+                <span className="hampers-badge-pill">🧧 Edisi Imlek & Hari Raya</span>
+                <img
+                  src="/assets/hampers/hampers-imlek.jpg"
+                  alt="Hampers Lapis Legit Edisi Imlek Chinese New Year Sharenpan"
+                  className="hampers-card-img"
+                />
+              </div>
+              <div className="hampers-card-body">
+                <h3>Hampers Edisi Imlek & Perayaan</h3>
+                <p>
+                  Kemasan khusus hantaran dengan selongsong & kartu ucapan &quot;Happy Chinese New Year&quot; berwarna merah hangat bernuansa mewah.
+                </p>
+                <div className="hampers-feature-list">
+                  <span>🧧 Kartu Ucapan & Stiker Tematik</span>
+                  <span>✨ Kemasan Dus Spesial Event</span>
+                  <span>🧈 Pilihan Varian Original / Plum</span>
+                </div>
+                <button
+                  className="primary-button"
+                  style={{ marginTop: "auto", width: "100%", justifyContent: "center" }}
+                  onClick={() => setCartOpen(true)}
+                >
+                  Pesan Hampers Imlek <span>→</span>
+                </button>
+              </div>
+            </article>
+
+            {/* Card 2: Edisi Lebaran / Idul Fitri (Eid Mubarak) */}
+            <article className="hampers-card-item">
+              <div className="hampers-media-frame">
+                <span className="hampers-badge-pill gold">🌙 Edisi Lebaran (Eid Mubarak)</span>
+                <video autoPlay muted loop playsInline controls preload="metadata" className="hampers-card-video">
+                  <source src="/assets/special-edition-lebaran.mp4" type="video/mp4" />
+                </video>
+              </div>
+              <div className="hampers-card-body">
+                <h3>Hampers Edisi Lebaran</h3>
+                <p>
+                  Kemasan hampers eksklusif Idul Fitri bernuansa floral & kubah &quot;Eid Mubarak&quot; dengan pisau kue spesial, pas untuk hantaran kerabat.
+                </p>
+                <div className="hampers-feature-list">
+                  <span>🌙 Design Box Eksklusif Eid Mubarak</span>
+                  <span>💌 Kartu Ucapan Idul Fitri Personal</span>
+                  <span>🧈 Pilihan Varian Original / Plum</span>
+                </div>
+                <button
+                  className="primary-button"
+                  style={{ marginTop: "auto", width: "100%", justifyContent: "center" }}
+                  onClick={() => setCartOpen(true)}
+                >
+                  Pesan Hampers Lebaran <span>→</span>
+                </button>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        {/* 7 ── UGC & SOCIAL PROOF */}
+        <section className="ugc-section content-width">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Cerita & Ulasan Pelanggan</p>
+              <h2>📸 #SharenpanMoments</h2>
+            </div>
+            <a href="https://www.instagram.com/sharenpan_/" target="_blank" rel="noopener noreferrer" className="secondary-button" style={{ display: "inline-flex", gap: "6px", alignItems: "center", minHeight: "auto", padding: "8px 16px", fontSize: "12px" }}>
+              Follow @sharenpan_ ↗
             </a>
           </div>
-        </section>
 
-        {/* SPECIAL EDITION VIDEO BANNER */}
-        <section className="special-edition content-width">
-          <div className="special-video">
-            <video autoPlay muted loop playsInline controls preload="metadata">
-              <source src="/assets/special-edition-lebaran.mp4" type="video/mp4" />
-            </video>
-          </div>
-          <div className="special-copy">
-            <p className="eyebrow">Special Edition Hampers</p>
-            <h2>Momen Manis <em>Bersama Keluarga.</em></h2>
-            <p>Hadirkan kehangatan lapis legit premium Sharenpan di setiap perayaan hari raya & momen spesial bersama orang tercinta.</p>
-            <div className="special-details">
-              <span><b>100%</b> Real Butter Wijsman</span>
-              <span><b>Fresh</b> Baked Daily</span>
-              <span><b>Custom</b> Gift Card & Ribbon</span>
+          <div className="ugc-grid">
+            <div className="ugc-card">
+              <div className="ugc-badge">⭐ 5.0 Rating</div>
+              <p className="ugc-quote">&quot;Harum butter Wijsman langsung kerasa banget pas dus dibuka! Teksturnya super lembut, 1 loyang habis sekeluarga pas kumpul Lebaran.&quot;</p>
+              <div className="ugc-author">
+                <strong>Diana Pratiwi</strong>
+                <small>Verified Buyer • Bandung</small>
+              </div>
             </div>
-            <button className="primary-button" onClick={() => setCartOpen(true)}>
-              Pesan Hampers Sekarang <span>→</span>
-            </button>
+
+            <div className="ugc-card">
+              <div className="ugc-badge">🎁 Hampers Gift</div>
+              <p className="ugc-quote">&quot;Pesan paket hampers pita emas untuk mertua. Packaging-nya sangat mewah dan rasa lapis legit prune-nya dapet pujian terus!&quot;</p>
+              <div className="ugc-author">
+                <strong>Budi Santoso</strong>
+                <small>Verified Buyer • Jakarta</small>
+              </div>
+            </div>
+
+            <div className="ugc-card">
+              <div className="ugc-badge">☕ Coffee Companion</div>
+              <p className="ugc-quote">&quot;Legitnya pas, gak manis bikin enek. Cocok banget disandingkan sama kopi hitam hangat pas sore-sore.&quot;</p>
+              <div className="ugc-author">
+                <strong>Melissa V.</strong>
+                <small>Verified Buyer • Surabaya</small>
+              </div>
+            </div>
           </div>
         </section>
 
+        {/* 8 ── CARA ORDER (penutup, CTA terakhir) */}
         <section className="order-banner content-width" id="cara-order">
           <div>
             <p className="eyebrow">Pesan untuk momen spesialmu</p>
@@ -699,47 +966,6 @@ export default function Storefront({
           </div>
         </section>
 
-        {/* UGC & SOCIAL PROOF GALLERY SECTION */}
-        <section className="ugc-section content-width">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Cerita & Ulasan Pelanggan</p>
-              <h2>📸 #SharenpanMoments</h2>
-            </div>
-            <a href="https://www.instagram.com/sharenpan_/" target="_blank" rel="noopener noreferrer" className="secondary-button" style={{ display: "inline-flex", gap: "6px", alignItems: "center", minHeight: "auto", padding: "8px 16px", fontSize: "12px" }}>
-              Follow @sharenpan_ ↗
-            </a>
-          </div>
-
-          <div className="ugc-grid">
-            <div className="ugc-card">
-              <div className="ugc-badge">⭐ 5.0 Rating</div>
-              <p className="ugc-quote">"Harum butter Wijsman langsung kerasa banget pas dus dibuka! Teksturnya super lembut, 1 loyang habis sekeluarga pas kumpul Lebaran."</p>
-              <div className="ugc-author">
-                <strong>Diana Pratiwi</strong>
-                <small>Verified Buyer • Bandung</small>
-              </div>
-            </div>
-
-            <div className="ugc-card">
-              <div className="ugc-badge">🎁 Hampers Gift</div>
-              <p className="ugc-quote">"Pesan paket hampers pita emas untuk mertua. Packaging-nya sangat mewah dan rasa lapis legit prune-nya dapet pujian terus!"</p>
-              <div className="ugc-author">
-                <strong>Budi Santoso</strong>
-                <small>Verified Buyer • Jakarta</small>
-              </div>
-            </div>
-
-            <div className="ugc-card">
-              <div className="ugc-badge">☕ Coffee Companion</div>
-              <p className="ugc-quote">"Legitnya pas, gak manis bikin enek. Cocok banget disandingkan sama kopi hitam hangat pas sore-sore."</p>
-              <div className="ugc-author">
-                <strong>Melissa V.</strong>
-                <small>Verified Buyer • Surabaya</small>
-              </div>
-            </div>
-          </div>
-        </section>
       </main>
 
       <aside className={cartOpen ? "cart-drawer open" : "cart-drawer"}>
@@ -807,7 +1033,7 @@ export default function Storefront({
                   type="text"
                   value={promoInput}
                   onChange={(e) => setPromoInput(e.target.value)}
-                  placeholder="Kode: WELCOME10"
+                  placeholder="Kode: WELCOME25K"
                   style={{ flex: 1, padding: "6px 10px", borderRadius: "6px", border: "1px solid #d8c8b8", fontSize: "12px", textTransform: "uppercase" }}
                 />
                 <button
@@ -1106,50 +1332,126 @@ export default function Storefront({
           onClose={() => setPaymentGatewayOrder(null)}
           onSuccess={() => {
             setPaymentGatewayOrder(null);
-            showToast("Pembayaran berhasil dikonfirmasi! Pesanan Anda diproses.");
+            showToast("Bukti pembayaran terkirim, menunggu verifikasi admin.");
+            setCart([]);
+            setAuthOpen(false);
           }}
         />
       )}
 
       {/* PRODUCT DETAIL MODAL */}
-      {detailProduct && (
-        <div className="modal-backdrop" role="presentation" onClick={() => setDetailProduct(null)}>
-          <div className="product-detail-modal" role="dialog" onClick={(e) => e.stopPropagation()}>
-            <button className="modal-close" onClick={() => setDetailProduct(null)}>×</button>
+      {detailProduct && (() => {
+        const gallery = getProductGallery(detailProduct);
+        const safeIndex = Math.min(detailImageIndex, gallery.length - 1);
+        const currentPhoto = gallery[safeIndex] || gallery[0];
 
-            <div className="detail-grid">
-              <div className="detail-image-box">
-                <span className="product-tag">{detailProduct.tag}</span>
-                <img src={detailProduct.imageUrl} alt={detailProduct.name} />
-              </div>
+        return (
+          <div className="modal-backdrop" role="presentation" onClick={() => setDetailProduct(null)}>
+            <div className="product-detail-modal" role="dialog" onClick={(e) => e.stopPropagation()}>
+              <button className="modal-close" onClick={() => setDetailProduct(null)}>×</button>
 
-              <div className="detail-info-box">
-                <p className="eyebrow">Resep Warisan Sejak 2014</p>
-                <h2>{detailProduct.name}</h2>
-                <p className="detail-description">{detailProduct.description}</p>
+              <div className="detail-grid">
+                <div className="detail-image-column">
+                  <div className="detail-image-box">
+                    <span className="product-tag">{detailProduct.tag}</span>
+                    <img src={currentPhoto.url} alt={`${detailProduct.name} - ${currentPhoto.label}`} />
 
-                {/* Size Selector */}
-                <div className="size-selector-box">
-                  <span className="section-label">Pilih Ukuran Kue:</span>
-                  <div className="size-options">
-                    <button
-                      type="button"
-                      className={`size-btn ${detailSize === "full" ? "selected" : ""}`}
-                      onClick={() => setDetailSize("full")}
-                    >
-                      <strong>Full Size (20 × 20 cm)</strong>
-                      <small>Berat ~1.000g • {money(detailProduct.price)}</small>
-                    </button>
-                    <button
-                      type="button"
-                      className={`size-btn ${detailSize === "half" ? "selected" : ""}`}
-                      onClick={() => setDetailSize("half")}
-                    >
-                      <strong>Half Size (10 × 20 cm)</strong>
-                      <small>Berat ~500g • {money(Math.round(detailProduct.price * 0.55))}</small>
-                    </button>
+                    {/* Carousel Arrow Controls */}
+                    {gallery.length > 1 && (
+                      <>
+                        <button
+                          type="button"
+                          className="carousel-arrow prev"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDetailImageIndex((prev) => (prev === 0 ? gallery.length - 1 : prev - 1));
+                          }}
+                          aria-label="Foto sebelumnya"
+                        >
+                          ‹
+                        </button>
+                        <button
+                          type="button"
+                          className="carousel-arrow next"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDetailImageIndex((prev) => (prev === gallery.length - 1 ? 0 : prev + 1));
+                          }}
+                          aria-label="Foto selanjutnya"
+                        >
+                          ›
+                        </button>
+                      </>
+                    )}
+
+                    {/* Image Caption Overlay Badge */}
+                    <div className="carousel-caption-badge">
+                      📷 {currentPhoto.label} ({safeIndex + 1}/{gallery.length})
+                    </div>
                   </div>
+
+                  {/* Thumbnails Carousel Strip */}
+                  {gallery.length > 1 && (
+                    <div className="detail-thumbnails-strip">
+                      {gallery.map((item, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          className={`thumbnail-item ${safeIndex === idx ? "active" : ""}`}
+                          onClick={() => setDetailImageIndex(idx)}
+                          title={item.label}
+                        >
+                          <img src={item.url} alt={item.label} />
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
+
+                <div className="detail-info-box">
+                  <p className="eyebrow">Resep Warisan Sejak 2010</p>
+                  <h2>{detailProduct.name}</h2>
+                  <p className="detail-description">{detailProduct.description}</p>
+
+                  {/* Size Selector */}
+                  <div className="size-selector-box">
+                    <span className="section-label">Pilih Ukuran Kue:</span>
+                    <div className="size-options">
+                      <button
+                        type="button"
+                        className={`size-btn ${detailSize === "full" ? "selected" : ""}`}
+                        onClick={() => {
+                          setDetailSize("full");
+                          setDetailImageIndex(0);
+                        }}
+                      >
+                        <strong>Full Size (20 × 20 cm)</strong>
+                        <small>Berat ~1.000g • {money(getVariantPrice(detailProduct, "full"))}</small>
+                      </button>
+                      <button
+                        type="button"
+                        className={`size-btn ${detailSize === "half" ? "selected" : ""}`}
+                        onClick={() => {
+                          setDetailSize("half");
+                          setDetailImageIndex(1);
+                        }}
+                      >
+                        <strong>Half Size (10 × 20 cm)</strong>
+                        <small>Berat ~500g • {money(getVariantPrice(detailProduct, "half"))}</small>
+                      </button>
+                      <button
+                        type="button"
+                        className={`size-btn ${detailSize === "quarter" ? "selected" : ""}`}
+                        onClick={() => {
+                          setDetailSize("quarter");
+                          setDetailImageIndex(2);
+                        }}
+                      >
+                        <strong>1/4 Size (10 × 10 cm)</strong>
+                        <small>Berat ~250g • {money(getVariantPrice(detailProduct, "quarter"))}</small>
+                      </button>
+                    </div>
+                  </div>
 
                 {/* Premium Ingredients & Storage Advice */}
                 <div className="product-highlights">
@@ -1167,7 +1469,9 @@ export default function Storefront({
                 <div className="detail-action-row">
                   <div className="detail-price-tag">
                     <span>Total:</span>
-                    <strong>{money((detailSize === "full" ? detailProduct.price : Math.round(detailProduct.price * 0.55)) * detailQty)}</strong>
+                    <strong>
+                      {money(getVariantPrice(detailProduct, detailSize) * detailQty)}
+                    </strong>
                   </div>
 
                   <div className="detail-qty-control">
@@ -1179,11 +1483,18 @@ export default function Storefront({
                   <button
                     className="primary-button"
                     onClick={() => {
-                      const itemPrice = detailSize === "full" ? detailProduct.price : Math.round(detailProduct.price * 0.55);
-                      const sizeLabel = detailSize === "full" ? "20x20 cm" : "10x20 cm";
+                      const itemPrice = getVariantPrice(detailProduct, detailSize);
+                      const sizeLabel =
+                        detailSize === "full"
+                          ? "20x20 cm"
+                          : detailSize === "half"
+                            ? "10x20 cm"
+                            : "10x10 cm";
                       for (let i = 0; i < detailQty; i++) {
-                        addToCart({
+                      addToCart({
                           ...detailProduct,
+                          id: `${detailProduct.id}-${detailSize}`,
+                          productId: detailProduct.id,
                           price: itemPrice,
                           name: `${detailProduct.name} (${sizeLabel})`,
                         });
@@ -1198,9 +1509,10 @@ export default function Storefront({
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
       {/* FLOATING WHATSAPP CHAT WIDGET */}
-      <div className="wa-floating-container">
+      {!cartOpen && !checkoutOpen && <div className="wa-floating-container">
         {waWidgetOpen && (
           <div className="wa-chat-box">
             <div className="wa-chat-header">
@@ -1219,7 +1531,7 @@ export default function Storefront({
               </p>
               <div className="wa-quick-chips">
                 <a
-                  href="https://wa.me/62895321759440?text=Halo%20Sharenpan%2C%20saya%20mau%20tanya%20paket%20hampers%20lapis%20legit"
+                  href="https://wa.me/6281218826956?text=Halo%20Sharenpan%2C%20saya%20mau%20tanya%20paket%20hampers%20lapis%20legit"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="wa-chip"
@@ -1227,7 +1539,7 @@ export default function Storefront({
                   🎁 Tanya Paket Hampers
                 </a>
                 <a
-                  href="https://wa.me/62895321759440?text=Halo%20Sharenpan%2C%20apakah%20bisa%20kirim%20ke%20kota%20saya%3F"
+                  href="https://wa.me/6281218826956?text=Halo%20Sharenpan%2C%20apakah%20bisa%20kirim%20ke%20kota%20saya%3F"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="wa-chip"
@@ -1235,7 +1547,7 @@ export default function Storefront({
                   🚚 Cek Pengiriman CS
                 </a>
                 <a
-                  href="https://wa.me/62895321759440?text=Halo%20Sharenpan%2C%20saya%20mau%20konsultasi%20pesanan%20khusus"
+                  href="https://wa.me/6281218826956?text=Halo%20Sharenpan%2C%20saya%20mau%20konsultasi%20pesanan%20khusus"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="wa-chip"
@@ -1246,12 +1558,12 @@ export default function Storefront({
             </div>
             <div className="wa-chat-footer">
               <a
-                href="https://wa.me/62895321759440?text=Halo%20Sharenpan%2C%20saya%20ingin%20bertanya%20seputar%20lapis%20legit"
+                href="https://wa.me/6281218826956?text=Halo%20Sharenpan%2C%20saya%20ingin%20bertanya%20seputar%20lapis%20legit"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="wa-send-btn"
               >
-                Mulai Chat WhatsApp (+62 895-3217-59440) 💬
+                Mulai Chat WhatsApp (+62 812-1882-6956) 💬
               </a>
             </div>
           </div>
@@ -1264,9 +1576,9 @@ export default function Storefront({
           <span className="wa-icon">💬</span>
           <span className="wa-btn-label">Tanya CS WA</span>
         </button>
-      </div>
+      </div>}
 
-      {/* LEAD MAGNET POPUP MODAL (WELCOME10 VOUCHER) */}
+      {/* WELCOME VOUCHER POPUP */}
       {leadMagnetOpen && (
         <div className="modal-backdrop" role="presentation" onClick={() => setLeadMagnetOpen(false)}>
           <div className="lead-magnet-modal" role="dialog" onClick={(e) => e.stopPropagation()}>
@@ -1274,42 +1586,27 @@ export default function Storefront({
               className="modal-close"
               onClick={() => {
                 setLeadMagnetOpen(false);
-                if (typeof window !== "undefined") localStorage.setItem("sharenpan_lead_seen", "true");
               }}
             >
               ×
             </button>
             <div className="lead-magnet-content">
-              <span className="lead-badge">🎁 HADIAH SPESIAL PENGUNJUNG BARU</span>
-              <h2>Dapatkan Diskon 10%</h2>
+              <span className="lead-badge">🎁 HADIAH UNTUK MEMBER BARU</span>
+              <h2>Dapatkan Voucher Rp25.000</h2>
               <p className="lead-desc">
-                Masukkan WhatsApp atau email kamu untuk mengklaim kode voucher <strong>WELCOME10</strong> secara instan untuk pesanan pertamamu di Sharenpan.
+                Daftar akun Sharenpan untuk mendapatkan voucher <strong>WELCOME25K</strong> dan potongan Rp25.000 untuk pembelian lapis legit.
               </p>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (!leadMagnetContact.trim()) return;
-                  if (typeof window !== "undefined") localStorage.setItem("sharenpan_lead_seen", "true");
-                  handleApplyPromo("WELCOME10");
+              <div className="lead-form">
+                <button type="button" className="primary-button full-button" style={{ marginTop: "10px" }} onClick={() => {
+                  localStorage.setItem("sharenpan_pending_welcome25k", "true");
                   setLeadMagnetOpen(false);
-                  showToast("🎉 Voucher WELCOME10 berhasil diklaim & dipasang!");
-                }}
-                className="lead-form"
-              >
-                <input
-                  type="text"
-                  placeholder="Nomor WhatsApp / Email Anda"
-                  value={leadMagnetContact}
-                  onChange={(e) => setLeadMagnetContact(e.target.value)}
-                  required
-                  className="lead-input"
-                />
-                <button type="submit" className="primary-button full-button" style={{ marginTop: "10px" }}>
-                  Klaim Diskon 10% Sekarang ➔
+                  setAuthOpen(true);
+                }}>
+                  Daftar & Klaim Voucher Rp25.000 →
                 </button>
-              </form>
+              </div>
               <small className="lead-footer-note">
-                🔒 Data aman. Tanpa spam, langsung dipotong di keranjang!
+                🔒 Voucher hanya berlaku setelah akun berhasil dibuat dan untuk pembelian pertama.
               </small>
             </div>
           </div>

@@ -85,8 +85,10 @@ create table if not exists public.orders (
   discount integer not null default 0 check (discount >= 0),
   total integer not null default 0 check (total >= 0),
   status text not null default 'pending' check (status in ('pending', 'confirmed', 'processing', 'shipped', 'completed', 'cancelled')),
-  payment_status text not null default 'unpaid' check (payment_status in ('unpaid', 'pending', 'paid', 'failed', 'refunded')),
+  payment_status text not null default 'unpaid' check (payment_status in ('unpaid', 'pending', 'pending_verification', 'paid', 'failed', 'refunded')),
   payment_reference text,
+  payment_receipt_url text,
+  desired_delivery_date date,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

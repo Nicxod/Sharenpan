@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import PaymentGatewayModal from "@/components/payment-gateway-modal";
+import SharedNavbar from "@/components/shared-navbar";
 
 export type CustomerOrder = {
   id: string;
@@ -11,11 +12,30 @@ export type CustomerOrder = {
   total: number;
   subtotal?: number;
   shipping_fee?: number;
-  status: string; // 'pending' | 'confirmed' | 'processing' | 'shipped' | 'completed' | 'cancelled'
-  payment_status: string; // 'unpaid' | 'pending' | 'paid' | 'failed' | 'refunded'
-  shipping_address?: { address_line?: string; city?: string };
+  status: string;
+  payment_status: string;
+  shipping_address?: { address_line?: string; city?: string; courier?: string; etd?: string };
   notes?: string;
+  desired_delivery_date?: string;
   created_at: string;
+};
+
+export type CustomerOrderItem = {
+  order_id: string;
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+  subtotal: number;
+};
+
+export type CustomerVoucher = {
+  id: string;
+  code: string;
+  description: string | null;
+  discount_type: "percentage" | "fixed";
+  discount_value: number;
+  minimum_purchase: number;
+  expires_at: string | null;
 };
 
 export type CustomerData = {
@@ -23,555 +43,640 @@ export type CustomerData = {
   email: string;
   phone: string;
   orders: CustomerOrder[];
+  orderItems: CustomerOrderItem[];
+  vouchers: CustomerVoucher[];
 };
 
-type TabType = "overview" | "orders" | "profile";
+type SideTab = "pesanan" | "profile" | "voucher";
 
-const money = (value: number) => `Rp${value.toLocaleString("id-ID")}`;
-const date = (value: string) =>
-  new Date(value).toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+const money = (n: number) => `Rp${n.toLocaleString("id-ID")}`;
+const dateShort = (v: string) =>
+  new Date(v).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
+const dateFull = (v: string) =>
+  new Date(v).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
 const statusLabel: Record<string, string> = {
-  pending: "Menunggu Pembayaran",
-  confirmed: "Pesanan Dikonfirmasi",
-  processing: "Sedang Dipanggang/Diproses",
-  shipped: "Dalam Pengiriman",
-  completed: "Pesanan Selesai",
+  pending: "Menunggu Konfirmasi",
+  confirmed: "Dikonfirmasi",
+  processing: "Sedang Dipanggang 🔥",
+  shipped: "Dalam Pengiriman 🚚",
+  completed: "Pesanan Selesai ✅",
   cancelled: "Dibatalkan",
 };
 
-const paymentStatusLabel: Record<string, { label: string; color: string }> = {
-  unpaid: { label: "Belum Dibayar", color: "bg-amber-100 text-amber-900 border-amber-300" },
-  pending: { label: "Menunggu Verifikasi", color: "bg-amber-100 text-amber-900 border-amber-300" },
-  paid: { label: "Lunas", color: "bg-emerald-100 text-emerald-900 border-emerald-300" },
-  failed: { label: "Gagal", color: "bg-rose-100 text-rose-900 border-rose-300" },
-  refunded: { label: "Dikembalikan", color: "bg-gray-100 text-gray-800 border-gray-300" },
+const statusColor: Record<string, string> = {
+  pending: "pill-amber",
+  confirmed: "pill-blue",
+  processing: "pill-orange",
+  shipped: "pill-blue",
+  completed: "pill-green",
+  cancelled: "pill-red",
 };
 
-// 5-Step Order Timeline calculation
-function getTimelineSteps(status: string, paymentStatus: string, createdAt: string) {
-  const isPaid = paymentStatus === "paid";
+const paymentLabel: Record<string, { text: string; cls: string }> = {
+  unpaid:   { text: "Belum Dibayar",        cls: "pill-red"   },
+  pending:  { text: "Menunggu Verifikasi",   cls: "pill-amber" },
+  pending_verification: { text: "Bukti Menunggu Verifikasi", cls: "pill-amber" },
+  paid:     { text: "Lunas",                cls: "pill-green" },
+  failed:   { text: "Gagal",               cls: "pill-red"   },
+  refunded: { text: "Dikembalikan",         cls: "pill-amber" },
+};
+
+function getSteps(status: string, payStatus: string, createdAt: string) {
+  const isPaid      = payStatus === "paid";
   const isConfirmed = status !== "pending" || isPaid;
-  const isProcessing = ["processing", "shipped", "completed"].includes(status);
-  const isShipped = ["shipped", "completed"].includes(status);
-  const isCompleted = status === "completed";
-  const isCancelled = status === "cancelled";
-
-  const formattedDate = new Date(createdAt).toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "short",
-  });
-
+  const isProcess   = ["processing", "shipped", "completed"].includes(status);
+  const isShipped   = ["shipped", "completed"].includes(status);
+  const isDone      = status === "completed";
+  const d           = dateShort(createdAt);
   return [
-    {
-      id: 1,
-      title: "Pesanan Dibuat",
-      icon: "📝",
-      completed: true,
-      active: status === "pending" && !isPaid,
-      time: formattedDate,
-    },
-    {
-      id: 2,
-      title: "Pembayaran Diterima",
-      icon: "💳",
-      completed: isPaid || isConfirmed,
-      active: isConfirmed && !isProcessing && status !== "pending",
-      time: isPaid || isConfirmed ? "Terkonfirmasi" : "Menunggu",
-    },
-    {
-      id: 3,
-      title: "Dipanggang & Diproses",
-      icon: "🧑‍🍳",
-      completed: isProcessing,
-      active: status === "processing",
-      time: isProcessing ? "Dapur Fresh" : "Antrean",
-    },
-    {
-      id: 4,
-      title: "Dalam Pengiriman",
-      icon: "🚚",
-      completed: isShipped,
-      active: status === "shipped",
-      time: isShipped ? "SiCepat Express" : "Kurir",
-    },
-    {
-      id: 5,
-      title: "Pesanan Selesai",
-      icon: "🎉",
-      completed: isCompleted,
-      active: isCompleted,
-      time: isCompleted ? "Tiba di tujuan" : "Estimasi Tiba",
-    },
+    { id: 1, label: "Pesanan Masuk",     icon: "📝", done: true,         active: status === "pending" && !isPaid, sub: d },
+    { id: 2, label: "Pembayaran Lunas",  icon: "💳", done: isPaid || isConfirmed, active: isConfirmed && !isProcess && status !== "pending", sub: isPaid ? "Terverifikasi" : "Menunggu" },
+    { id: 3, label: "Dipanggang Dapur",  icon: "🧑‍🍳", done: isProcess,    active: status === "processing", sub: isProcess ? "Fresh Oven" : "Antrean" },
+    { id: 4, label: "Dikirim Kurir",     icon: "🚚", done: isShipped,    active: status === "shipped",     sub: isShipped ? "Dalam Perjalanan" : "Ekspedisi" },
+    { id: 5, label: "Pesanan Selesai",   icon: "🎉", done: isDone,       active: isDone,                   sub: isDone ? "Diterima" : "Estimasi" },
   ];
 }
 
 export default function CustomerDashboard({ initialData }: { initialData: CustomerData }) {
-  const [data, setData] = useState(initialData);
-  const [activeTab, setActiveTab] = useState<TabType>(() => {
-    if (typeof window === "undefined") return "overview";
-    const tab = new URLSearchParams(window.location.search).get("tab");
-    return tab === "profile" || tab === "orders" || tab === "overview" ? tab : "overview";
-  });
-  const [selectedOrderForPay, setSelectedOrderForPay] = useState<CustomerOrder | null>(null);
-  const [selectedOrderForDetail, setSelectedOrderForDetail] = useState<CustomerOrder | null>(null);
-  const [selectedOrderForFeedback, setSelectedOrderForFeedback] = useState<CustomerOrder | null>(null);
-  const [feedbackRating, setFeedbackRating] = useState(5);
-  const [feedbackMessage, setFeedbackMessage] = useState("");
-  const [feedbackSuccess, setFeedbackSuccess] = useState("");
-  const [feedbackLoading, setFeedbackLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [data, setData]                           = useState(initialData);
+  const [tab, setTab]                             = useState<SideTab>("pesanan");
+  const [orderView, setOrderView]                 = useState<"active" | "history">("active");
+  const [payOrder, setPayOrder]                   = useState<CustomerOrder | null>(null);
+  const [detailOrder, setDetailOrder]             = useState<CustomerOrder | null>(null);
+  const [feedbackOrder, setFeedbackOrder]         = useState<CustomerOrder | null>(null);
+  const [feedbackRating, setFeedbackRating]       = useState(5);
+  const [feedbackMsg, setFeedbackMsg]             = useState("");
+  const [feedbackOk, setFeedbackOk]               = useState("");
+  const [feedbackLoading, setFeedbackLoading]     = useState(false);
+  const [search, setSearch]                       = useState("");
+  const [profileName, setProfileName]             = useState(initialData.name);
+  const [profilePhone, setProfilePhone]           = useState(initialData.phone === "Nomor telepon belum diisi" ? "" : initialData.phone);
+  const [profileSaving, setProfileSaving]         = useState(false);
+  const [profileMessage, setProfileMessage]       = useState("");
+  const [copiedVoucher, setCopiedVoucher]         = useState("");
 
   async function signOut() {
     await createClient().auth.signOut();
     window.location.href = "/";
   }
 
+  async function saveProfile(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setProfileSaving(true);
+    setProfileMessage("");
+    const supabase = createClient();
+    const user = (await supabase.auth.getUser()).data.user;
+    const { error } = await supabase.from("profiles").update({ full_name: profileName.trim(), phone: profilePhone.trim() || null }).eq("id", user?.id || "");
+    if (error) setProfileMessage(error.message);
+    else {
+      setData((current) => ({ ...current, name: profileName.trim() || current.name, phone: profilePhone.trim() || "Nomor telepon belum diisi" }));
+      setProfileMessage("Profil berhasil diperbarui.");
+    }
+    setProfileSaving(false);
+  }
+
+  async function copyVoucher(code: string) {
+    await navigator.clipboard.writeText(code);
+    setCopiedVoucher(code);
+    window.setTimeout(() => setCopiedVoucher(""), 1800);
+  }
+
   async function refreshOrders() {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-
-    const { data: updatedOrders } = await supabase
+    const { data: rows } = await supabase
       .from("orders")
-      .select("id, order_number, total, subtotal, shipping_fee, status, payment_status, shipping_address, notes, created_at")
+      .select("id,order_number,total,subtotal,shipping_fee,status,payment_status,shipping_address,notes,desired_delivery_date,created_at")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
-
-    if (updatedOrders) {
-      setData((prev) => ({ ...prev, orders: updatedOrders }));
-    }
+    if (rows) setData((p) => ({ ...p, orders: rows }));
   }
 
-  function handlePaymentSuccess() {
-    setSelectedOrderForPay(null);
-    refreshOrders();
-  }
-
-  const activeOrders = data.orders.filter((order) => !["completed", "cancelled"].includes(order.status));
-  const filteredOrders = data.orders.filter((order) =>
-    order.order_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    statusLabel[order.status]?.toLowerCase().includes(searchQuery.toLowerCase())
+  const activeOrders  = data.orders.filter((o) => !["completed", "cancelled"].includes(o.status));
+  const totalSpent    = data.orders.filter((o) => o.payment_status === "paid").reduce((s, o) => s + o.total, 0);
+  const filteredHistory = data.orders.filter(
+    (o) =>
+      o.order_number.toLowerCase().includes(search.toLowerCase()) ||
+      (statusLabel[o.status] || "").toLowerCase().includes(search.toLowerCase())
   );
 
+  /* ─── NAV ITEMS ─────────────────────────────────────────── */
+  const navItems: { key: SideTab; icon: string; label: string; badge?: number }[] = [
+    { key: "pesanan",  icon: "📦", label: "Pesanan Saya",  badge: activeOrders.length || undefined },
+    { key: "profile",  icon: "👤", label: "Profil & Akun" },
+    { key: "voucher",  icon: "🎟️", label: "Voucher Saya"  },
+  ];
+
   return (
-    <div className="customer-shell">
-      <header className="navbar">
-        <Link className="brand" href="/">
-          <img src="/assets/logo.png" alt="Sharenpan Logo" className="brand-logo-img" />
-          <span>
-            sharenpan
-            <small>lapis legit premium</small>
-          </span>
-        </Link>
-        <nav className="desktop-nav" aria-label="Navigasi utama">
-          <Link href="/">Home</Link>
-          <Link href="/#produk">Produk</Link>
-          <Link href="/#cerita">Tentang kami</Link>
-          <Link href="/#cara-order">Cara order</Link>
-          <button
-            className="nav-pesanan-highlight active-nav"
-            onClick={() => setActiveTab("overview")}
-          >
-            📦 Pesanan
-          </button>
-        </nav>
-        <div className="nav-actions">
-          <button
-            className={`account-button ${activeTab === "profile" ? "active-profile" : ""}`}
-            onClick={() => setActiveTab("profile")}
-          >
-            👤 Profil Saya
-          </button>
-          <Link href="/" className="cart-button" title="Kembali ke toko">
-            Ke Toko 🛍️
-          </Link>
-          <button className="logout-button" onClick={signOut}>
-            Keluar
-          </button>
-        </div>
-      </header>
+    <div className="cd-shell">
+      {/* ── SHARED NAVBAR — sama persis dengan halaman lain ── */}
+      <SharedNavbar variant="customer" onSignOut={signOut} />
 
-      <main className="customer-main">
-        {/* Welcome Section */}
-        <div className="customer-welcome">
-          <div>
-            <p className="eyebrow">Dashboard Pelanggan</p>
-            <h1>Selamat Datang, {data.name}.</h1>
-            <p>Pantau proses pesanan lapis legit fresh Anda dalam satu tempat.</p>
+      {/* ── BODY: SIDEBAR + CONTENT ── */}
+      <div className="cd-body">
+
+        {/* ── SIDEBAR ── */}
+        <aside className="cd-sidebar">
+          {/* Avatar card */}
+          <div className="cd-sidebar-profile">
+            <div className="cd-avatar">{data.name.slice(0, 1).toUpperCase()}</div>
+            <div className="cd-sidebar-name">{data.name}</div>
+            <div className="cd-sidebar-email">{data.email}</div>
+            <span className="cd-verified-pill">✓ Customer Terverifikasi</span>
           </div>
-          <span className="customer-avatar">{data.name.slice(0, 1).toUpperCase()}</span>
-        </div>
 
-        {/* Tab Switcher Navigation */}
-        <nav className="customer-nav-tabs" aria-label="Menu Customer">
-          <button
-            className={`customer-tab-btn ${activeTab === "overview" ? "active" : ""}`}
-            onClick={() => setActiveTab("overview")}
-          >
-            🔥 Status Pesanan Aktif {activeOrders.length > 0 && <b>{activeOrders.length}</b>}
-          </button>
-          <button
-            className={`customer-tab-btn ${activeTab === "orders" ? "active" : ""}`}
-            onClick={() => setActiveTab("orders")}
-          >
-            📦 Riwayat & Lacak Pesanan
-          </button>
-          <button
-            className={`customer-tab-btn ${activeTab === "profile" ? "active" : ""}`}
-            onClick={() => setActiveTab("profile")}
-          >
-            👤 Informasi Akun
-          </button>
-        </nav>
-
-        {/* TAB 1: OVERVIEW & PESANAN AKTIF */}
-        {activeTab === "overview" && (
-          <section className="tab-section">
-            <div className="customer-panel-heading">
-              <div>
-                <h2>Lacak Proses Pesanan Aktif</h2>
-                <p>Status pengerjaan & pengiriman kue lapis legit Anda real-time</p>
-              </div>
+          {/* Stats */}
+          <div className="cd-sidebar-stats">
+            <div className="cd-sidebar-stat">
+              <strong>{data.orders.length}</strong>
+              <span>Total Order</span>
             </div>
+            <div className="cd-sidebar-stat-divider" />
+            <div className="cd-sidebar-stat">
+              <strong style={{ color: activeOrders.length > 0 ? "#c97c3a" : "inherit" }}>
+                {activeOrders.length}
+              </strong>
+              <span>Aktif</span>
+            </div>
+            <div className="cd-sidebar-stat-divider" />
+            <div className="cd-sidebar-stat">
+              <strong style={{ fontSize: "11px", letterSpacing: 0 }}>{money(totalSpent)}</strong>
+              <span>Total Belanja</span>
+            </div>
+          </div>
 
-            {activeOrders.length === 0 ? (
-              <div className="customer-panel customer-empty">
-                🎉 Belum ada pesanan aktif saat ini.<br />
-                <small style={{ color: "#8a7566", display: "block", margin: "8px 0 16px" }}>
-                  Setiap pesanan lapis legit dipanggang fresh khusus untuk Anda.
-                </small>
-                <Link href="/" className="primary-button" style={{ display: "inline-flex", minHeight: "40px", fontSize: "12px" }}>
-                  Pesan Lapis Legit Sekarang →
-                </Link>
+          {/* Nav */}
+          <nav className="cd-sidebar-nav" aria-label="Dashboard navigasi">
+            {navItems.map((item) => (
+              <button
+                key={item.key}
+                className={`cd-sidebar-nav-item ${tab === item.key ? "active" : ""}`}
+                onClick={() => setTab(item.key)}
+              >
+                <span className="cd-snav-icon">{item.icon}</span>
+                <span className="cd-snav-label">{item.label}</span>
+                {item.badge ? <span className="cd-snav-badge">{item.badge}</span> : null}
+              </button>
+            ))}
+          </nav>
+
+          <button className="cd-sidebar-logout" onClick={signOut}>⟵ Keluar Akun</button>
+        </aside>
+
+        {/* ── MAIN CONTENT ── */}
+        <main className="cd-content">
+
+          {/* ════════════ TAB: PESANAN ════════════ */}
+          {tab === "pesanan" && (
+            <div className="cd-page">
+              <div className="cd-page-header">
+                <div>
+                  <h1>📦 Pesanan Saya</h1>
+                  <p>Pantau status pengerjaan & riwayat transaksi lapis legit kamu</p>
+                </div>
+                {/* Sub-tab toggle */}
+                <div className="cd-subtab-toggle">
+                  <button
+                    className={`cd-subtab ${orderView === "active" ? "active" : ""}`}
+                    onClick={() => setOrderView("active")}
+                  >
+                    🔥 Aktif {activeOrders.length > 0 && <span className="cd-subtab-badge">{activeOrders.length}</span>}
+                  </button>
+                  <button
+                    className={`cd-subtab ${orderView === "history" ? "active" : ""}`}
+                    onClick={() => setOrderView("history")}
+                  >
+                    📜 Riwayat
+                  </button>
+                </div>
               </div>
-            ) : (
-              activeOrders.map((order) => {
-                const steps = getTimelineSteps(order.status, order.payment_status, order.created_at);
-                const isUnpaid = order.payment_status === "unpaid";
 
-                return (
-                  <div key={order.id} className="active-tracker-card">
-                    <div className="tracker-card-header">
-                      <div>
-                        <h3>No. Order: #{order.order_number}</h3>
-                        <small>Dipesan pada {date(order.created_at)}</small>
+              {/* ─ PESANAN AKTIF ─ */}
+              {orderView === "active" && (
+                activeOrders.length === 0 ? (
+                  <div className="cd-empty">
+                    <span>🍰</span>
+                    <h3>Belum ada pesanan aktif</h3>
+                    <p>Setiap kue lapis legit dipanggang fresh 100% Wijsman butter khusus pesanan kamu.</p>
+                    <Link href="/" className="primary-button" style={{ display: "inline-flex", marginTop: "14px" }}>
+                      Pesan Sekarang <span>→</span>
+                    </Link>
+                  </div>
+                ) : (
+                  activeOrders.map((order) => {
+                    const steps  = getSteps(order.status, order.payment_status, order.created_at);
+                    const unpaid = ["unpaid", "failed"].includes(order.payment_status);
+                    return (
+                      <div key={order.id} className="cd-order-card">
+                        {/* Card header */}
+                        <div className="cd-ocard-head">
+                          <div>
+                            <span className="cd-ocard-label">No. Pesanan</span>
+                            <h2 className="cd-ocard-number">#{order.order_number}</h2>
+                            <span className="cd-ocard-date">Dipesan {dateShort(order.created_at)}</span>
+                          </div>
+                          <div className="cd-ocard-pills">
+                            <span className={`cd-pill ${statusColor[order.status] || ""}`}>
+                              {statusLabel[order.status] || order.status}
+                            </span>
+                            <span className={`cd-pill ${paymentLabel[order.payment_status]?.cls || ""}`}>
+                              {paymentLabel[order.payment_status]?.text || order.payment_status}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Delivery date */}
+                        {order.desired_delivery_date && (
+                          <div className="cd-delivery-banner">
+                            🗓️ Estimasi Pengiriman:&nbsp;
+                            <strong>
+                              {new Date(order.desired_delivery_date).toLocaleDateString("id-ID", {
+                                weekday: "long", day: "numeric", month: "long", year: "numeric",
+                              })}
+                            </strong>
+                          </div>
+                        )}
+
+                        {/* Stepper */}
+                        <div className="cd-stepper">
+                          {steps.map((step, idx) => (
+                            <div key={step.id} className={`cd-step ${step.done ? "done" : ""} ${step.active ? "current" : ""}`}>
+                              {idx > 0 && <div className={`cd-step-line ${step.done ? "done" : ""}`} />}
+                              <div className="cd-step-bubble">{step.done ? "✓" : step.icon}</div>
+                              <span className="cd-step-label">{step.label}</span>
+                              <small className="cd-step-sub">{step.sub}</small>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="cd-ocard-foot">
+                          <div className="cd-ocard-total">
+                            <span>Total Tagihan</span>
+                            <strong>{money(order.total)}</strong>
+                          </div>
+                          <div className="cd-ocard-actions">
+                            <button className="secondary-button" onClick={() => setDetailOrder(order)}>
+                              🔍 Lihat Detail
+                            </button>
+                            {unpaid && (
+                              <button className="primary-button" onClick={() => setPayOrder(order)}>
+                                💳 Bayar Sekarang
+                              </button>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <div className="tracker-total-badge">
-                        <strong>{money(order.total)}</strong>
-                        <span className={`customer-status ${paymentStatusLabel[order.payment_status]?.color || ""}`}>
-                          {paymentStatusLabel[order.payment_status]?.label || order.payment_status}
-                        </span>
-                      </div>
+                    );
+                  })
+                )
+              )}
+
+              {/* ─ RIWAYAT ─ */}
+              {orderView === "history" && (
+                <>
+                  <div className="cd-search-row">
+                    <input
+                      className="cd-search-input"
+                      placeholder="Cari nomor pesanan atau status…"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                    />
+                  </div>
+                  {filteredHistory.length === 0 ? (
+                    <div className="cd-empty">
+                      <span>🔍</span>
+                      <h3>Tidak ada pesanan ditemukan</h3>
+                      <p>Coba ubah kata kunci pencarian kamu.</p>
                     </div>
-
-                    {/* 5-Step Order Timeline */}
-                    <div className="order-timeline-stepper">
-                      {steps.map((step) => (
-                        <div
-                          key={step.id}
-                          className={`timeline-step-item ${step.completed ? "completed" : ""} ${step.active ? "active" : ""}`}
-                        >
-                          <div className="step-icon-circle">{step.completed ? "✓" : step.icon}</div>
-                          <span className="step-label">{step.title}</span>
-                          <span className="step-time">{step.time}</span>
+                  ) : (
+                    <div className="cd-history-list">
+                      {filteredHistory.map((order) => (
+                        <div key={order.id} className="cd-history-card">
+                          <div className="cd-hcard-left">
+                            <strong className="cd-hcard-num">#{order.order_number}</strong>
+                            <span className="cd-hcard-date">{dateFull(order.created_at)}</span>
+                            {order.shipping_address?.city && (
+                              <span className="cd-hcard-city">📍 {order.shipping_address.city}</span>
+                            )}
+                          </div>
+                          <div className="cd-hcard-mid">
+                            <span className={`cd-pill ${statusColor[order.status] || ""}`}>
+                              {statusLabel[order.status] || order.status}
+                            </span>
+                            <span className={`cd-pill ${paymentLabel[order.payment_status]?.cls || ""}`}>
+                              {paymentLabel[order.payment_status]?.text || order.payment_status}
+                            </span>
+                          </div>
+                          <div className="cd-hcard-right">
+                            <strong className="cd-hcard-total">{money(order.total)}</strong>
+                            <div className="cd-hcard-actions">
+                              <button className="secondary-button cd-hcard-btn" onClick={() => setDetailOrder(order)}>
+                                Detail
+                              </button>
+                              {order.status === "completed" && (
+                                <button
+                                  className="secondary-button cd-hcard-btn"
+                                  style={{ borderColor: "#c09050", color: "#7a4f28" }}
+                                  onClick={() => setFeedbackOrder(order)}
+                                >
+                                  💬 Ulasan
+                                </button>
+                              )}
+                              {["unpaid", "failed"].includes(order.payment_status) && (
+                                <button className="primary-button cd-hcard-btn" onClick={() => setPayOrder(order)}>
+                                  Bayar
+                                </button>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       ))}
                     </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
 
-                    <div className="tracker-footer-actions">
-                      <button className="btn-detail-order" onClick={() => setSelectedOrderForDetail(order)}>
-                        🔍 Lihat Detail & Alamat Pengiriman
-                      </button>
-
-                      {isUnpaid && (
-                        <button className="btn-pay-now" onClick={() => setSelectedOrderForPay(order)}>
-                          💳 Bayar Sekarang ({money(order.total)})
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </section>
-        )}
-
-        {/* TAB 2: SEMUA PESANAN & RIWAYAT */}
-        {activeTab === "orders" && (
-          <section className="tab-section">
-            <div className="customer-panel full-panel">
-              <div className="panel-heading" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+          {/* ════════════ TAB: PROFIL ════════════ */}
+          {tab === "profile" && (
+            <div className="cd-page">
+              <div className="cd-page-header">
                 <div>
-                  <h2>Semua Transaksi</h2>
-                  <p>Lihat status dan riwayat seluruh pemesanan Anda</p>
+                  <h1>👤 Profil & Akun</h1>
+                  <p>Informasi akun yang terdaftar untuk keperluan pesanan kamu</p>
                 </div>
-                <input
-                  type="text"
-                  className="panel-search"
-                  placeholder="Cari No. Order..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
               </div>
 
-              {filteredOrders.length === 0 ? (
-                <div className="empty-table">Tidak ada pesanan ditemukan.</div>
-              ) : (
-                <div className="customer-orders">
-                  {filteredOrders.map((order) => (
-                    <div className="customer-order" key={order.id} style={{ alignItems: "center" }}>
-                      <div>
-                        <strong>#{order.order_number}</strong>
-                        <small>{date(order.created_at)}</small>
-                        {order.shipping_address?.city && (
-                          <small style={{ color: "#6f5b4d", marginTop: "2px" }}>
-                            📍 Kirim ke {order.shipping_address.city}
-                          </small>
-                        )}
-                      </div>
-
-                      <div style={{ textAlign: "right" }}>
-                        <b>{money(order.total)}</b>
-                        <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
-                          <span className={`customer-status ${order.status}`}>
-                            {statusLabel[order.status] || order.status}
-                          </span>
-                          <span className={`customer-status ${paymentStatusLabel[order.payment_status]?.color || ""}`}>
-                            {paymentStatusLabel[order.payment_status]?.label || order.payment_status}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div style={{ display: "flex", gap: "8px" }}>
-                        <button className="btn-detail-order" onClick={() => setSelectedOrderForDetail(order)}>
-                          Lacak
-                        </button>
-                        {order.status === "completed" && (
-                          <button className="btn-detail-order" style={{ borderColor: "#b47c42", color: "#6f4932" }} onClick={() => setSelectedOrderForFeedback(order)}>
-                            💬 Feedback
-                          </button>
-                        )}
-                        {order.payment_status === "unpaid" && (
-                          <button className="btn-pay-now" onClick={() => setSelectedOrderForPay(order)}>
-                            Bayar
-                          </button>
-                        )}
-                      </div>
+              <div className="cd-profile-grid">
+                {/* Info pribadi */}
+                <div className="cd-profile-card">
+                  <h3>Informasi Pribadi</h3>
+                  <form className="stack-form" onSubmit={saveProfile} style={{ marginBottom: "18px" }}>
+                    <label>Nama Lengkap<input value={profileName} onChange={(event) => setProfileName(event.target.value)} required /></label>
+                    <label>No. WhatsApp<input value={profilePhone} onChange={(event) => setProfilePhone(event.target.value)} placeholder="08xxxxxxxxxx" /></label>
+                    {profileMessage && <small className="form-message">{profileMessage}</small>}
+                    <button className="primary-button" disabled={profileSaving}>{profileSaving ? "Menyimpan..." : "Simpan Profil"}</button>
+                  </form>
+                  {[
+                    { label: "Nama Lengkap",      val: data.name },
+                    { label: "Email Terdaftar",    val: data.email },
+                    { label: "No. WhatsApp",       val: data.phone || "Belum diisi" },
+                    { label: "Status Akun",        val: "✅ Terverifikasi Customer Sharenpan", green: true },
+                  ].map((row) => (
+                    <div key={row.label} className="cd-profile-row">
+                      <span className="cd-profile-key">{row.label}</span>
+                      <span className="cd-profile-val" style={row.green ? { color: "#2e7d32", fontWeight: 700 } : {}}>
+                        {row.val}
+                      </span>
                     </div>
                   ))}
                 </div>
-              )}
-            </div>
-          </section>
-        )}
 
-        {/* TAB 3: PROFIL & INFORMASI AKUN */}
-        {activeTab === "profile" && (
-          <section className="tab-section">
-            <div className="customer-panel">
-              <div className="customer-panel-heading">
+                {/* Alamat terakhir */}
+                <div className="cd-profile-card">
+                  <h3>Alamat Pengiriman Terbaru</h3>
+                  {data.orders.length > 0 && data.orders[0].shipping_address?.address_line ? (
+                    <>
+                      <p className="cd-profile-address">{data.orders[0].shipping_address.address_line}</p>
+                      <span className="cd-profile-city-tag">📍 {data.orders[0].shipping_address.city}</span>
+                    </>
+                  ) : (
+                    <p className="cd-profile-empty">Alamat akan otomatis tersimpan setelah kamu checkout pertama kali.</p>
+                  )}
+                  <div style={{ marginTop: "24px" }}>
+                    <Link href="/" className="primary-button" style={{ display: "inline-flex" }}>
+                      Mulai Belanja <span>→</span>
+                    </Link>
+                  </div>
+                </div>
+
+                {/* Ringkasan belanja */}
+                <div className="cd-profile-card cd-profile-summary">
+                  <h3>Ringkasan Belanja</h3>
+                  <div className="cd-summary-stat-row">
+                    <span>Total Transaksi</span><strong>{data.orders.length} pesanan</strong>
+                  </div>
+                  <div className="cd-summary-stat-row">
+                    <span>Pesanan Lunas</span>
+                    <strong>{data.orders.filter((o) => o.payment_status === "paid").length} pesanan</strong>
+                  </div>
+                  <div className="cd-summary-stat-row">
+                    <span>Total Pengeluaran</span>
+                    <strong style={{ color: "#7a4f28", fontFamily: "Georgia, serif", fontSize: "17px" }}>{money(totalSpent)}</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ════════════ TAB: VOUCHER ════════════ */}
+          {tab === "voucher" && (
+            <div className="cd-page">
+              <div className="cd-page-header">
                 <div>
-                  <h2>Informasi Profil Akun</h2>
-                  <p>Data diri yang digunakan saat checkout pesanan</p>
+                  <h1>🎟️ Voucher Saya</h1>
+                  <p>Kode promo & diskon spesial yang aktif untuk pesanan kamu</p>
                 </div>
               </div>
 
-              <div className="account-details">
-                <div>
-                  <span>Nama Lengkap</span>
-                  <strong>{data.name}</strong>
-                </div>
-                <div>
-                  <span>Email Terdaftar</span>
-                  <strong>{data.email}</strong>
-                </div>
-                <div>
-                  <span>Nomor Telepon</span>
-                  <strong>{data.phone}</strong>
-                </div>
-                <div>
-                  <span>Status Akun</span>
-                  <strong style={{ color: "#2b7a48" }}>✓ Terverifikasi Customer Sharenpan</strong>
+              <div className="cd-voucher-grid">
+                {/* Voucher aktif */}
+                <div className="cd-voucher-card cd-voucher-active">
+                  <div className="cd-voucher-top">
+                    <span className="cd-voucher-badge-active">● AKTIF</span>
+                    <span className="cd-voucher-exp">Berlaku selamanya</span>
+                  </div>
+                  <div className="cd-voucher-code">{data.vouchers[0]?.code || "WELCOME10"}</div>
+                  <div className="cd-voucher-desc">Diskon 10% untuk semua produk lapis legit Sharenpan</div>
+                  <div className="cd-voucher-value">Hemat 10%</div>
+                  <button className="secondary-button" style={{ marginTop: "14px" }} onClick={() => copyVoucher(data.vouchers[0]?.code || "WELCOME10")}>{copiedVoucher === (data.vouchers[0]?.code || "WELCOME10") ? "Tersalin ✓" : "Salin Kode"}</button>
+                  <div className="cd-voucher-notch-left" />
+                  <div className="cd-voucher-notch-right" />
                 </div>
 
-                <Link href="/" className="primary-button" style={{ marginTop: "24px", width: "fit-content" }}>
-                  Mulai Belanja Lapis Legit →
-                </Link>
+                {/* Voucher informasi */}
+                <div className="cd-voucher-card cd-voucher-info">
+                  <div className="cd-voucher-top">
+                    <span className="cd-voucher-badge-info">ℹ️ INFO</span>
+                  </div>
+                  <div className="cd-voucher-code" style={{ fontSize: "18px", letterSpacing: "2px" }}>SHARENPAN50K</div>
+                  <div className="cd-voucher-desc">Potongan Rp50.000 untuk pembelian minimal Rp250.000</div>
+                  <div className="cd-voucher-value">Hemat Rp50.000</div>
+                  <div className="cd-voucher-notch-left" />
+                  <div className="cd-voucher-notch-right" />
+                </div>
               </div>
-            </div>
-          </section>
-        )}
-      </main>
 
-      {/* ORDER DETAIL & TRACKING MODAL */}
-      {selectedOrderForDetail && (
-        <div className="modal-backdrop" role="presentation" onClick={() => setSelectedOrderForDetail(null)}>
-          <div className="order-detail-modal" role="dialog" onClick={(e) => e.stopPropagation()}>
-            <button className="modal-close" onClick={() => setSelectedOrderForDetail(null)}>×</button>
-            <p className="eyebrow">Rincian Lacak Pesanan</p>
-            <h2 style={{ fontFamily: "Georgia, serif", fontSize: "26px", margin: "6px 0 16px" }}>
-              Order #{selectedOrderForDetail.order_number}
+              <p className="cd-voucher-note">
+                💡 Masukkan kode voucher di halaman checkout saat kamu melakukan pemesanan.
+              </p>
+            </div>
+          )}
+
+        </main>
+      </div>
+
+      {/* ── MOBILE BOTTOM NAV ── */}
+      <nav className="cd-mobile-nav" aria-label="Navigasi mobile">
+        {navItems.map((item) => (
+          <button
+            key={item.key}
+            className={`cd-mobile-nav-item ${tab === item.key ? "active" : ""}`}
+            onClick={() => setTab(item.key)}
+          >
+            <span className="cd-mobile-nav-icon">{item.icon}</span>
+            <span className="cd-mobile-nav-label">{item.label}</span>
+            {item.badge ? <span className="cd-mobile-nav-badge">{item.badge}</span> : null}
+          </button>
+        ))}
+        <button className="cd-mobile-nav-item" onClick={signOut}>
+          <span className="cd-mobile-nav-icon">🚪</span>
+          <span className="cd-mobile-nav-label">Keluar</span>
+        </button>
+      </nav>
+
+      {/* ── MODALS ── */}
+
+      {/* Detail Modal */}
+      {detailOrder && (
+        <div className="modal-backdrop" onClick={() => setDetailOrder(null)}>
+          <div className="order-detail-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setDetailOrder(null)}>×</button>
+            <p className="eyebrow">Rincian Pesanan</p>
+            <h2 style={{ fontFamily: "Georgia, serif", fontSize: "24px", margin: "4px 0 16px", color: "#6f4932" }}>
+              #{detailOrder.order_number}
             </h2>
 
-            {/* Stepper Inside Modal */}
-            <div className="order-timeline-stepper" style={{ margin: "20px 0" }}>
-              {getTimelineSteps(selectedOrderForDetail.status, selectedOrderForDetail.payment_status, selectedOrderForDetail.created_at).map((step) => (
-                <div key={step.id} className={`timeline-step-item ${step.completed ? "completed" : ""} ${step.active ? "active" : ""}`}>
-                  <div className="step-icon-circle">{step.completed ? "✓" : step.icon}</div>
-                  <span className="step-label">{step.title}</span>
-                  <span className="step-time">{step.time}</span>
+            {/* Stepper */}
+            <div className="cd-stepper" style={{ margin: "16px 0" }}>
+              {getSteps(detailOrder.status, detailOrder.payment_status, detailOrder.created_at).map((step, idx) => (
+                <div key={step.id} className={`cd-step ${step.done ? "done" : ""} ${step.active ? "current" : ""}`}>
+                  {idx > 0 && <div className={`cd-step-line ${step.done ? "done" : ""}`} />}
+                  <div className="cd-step-bubble">{step.done ? "✓" : step.icon}</div>
+                  <span className="cd-step-label">{step.label}</span>
+                  <small className="cd-step-sub">{step.sub}</small>
                 </div>
               ))}
             </div>
 
             <div className="order-detail-meta">
-              <div>
-                <span>Waktu Transaksi</span>
-                <strong>{date(selectedOrderForDetail.created_at)}</strong>
-              </div>
-              <div>
-                <span>Status Pembayaran</span>
-                <strong>{paymentStatusLabel[selectedOrderForDetail.payment_status]?.label || selectedOrderForDetail.payment_status}</strong>
-              </div>
+              <div><span>Waktu Transaksi</span><strong>{dateFull(detailOrder.created_at)}</strong></div>
+              <div><span>Status Pembayaran</span><strong>{paymentLabel[detailOrder.payment_status]?.text || detailOrder.payment_status}</strong></div>
+              {detailOrder.desired_delivery_date && (
+                <div>
+                  <span>Estimasi Tanggal Kirim</span>
+                  <strong>
+                    {new Date(detailOrder.desired_delivery_date).toLocaleDateString("id-ID", {
+                      weekday: "long", day: "numeric", month: "long", year: "numeric",
+                    })}
+                  </strong>
+                </div>
+              )}
               <div>
                 <span>Alamat Pengiriman</span>
-                <strong>
-                  {selectedOrderForDetail.shipping_address?.address_line || "Alamat standar"} ({selectedOrderForDetail.shipping_address?.city || "Kota Utama"})
-                </strong>
+                <strong>{detailOrder.shipping_address?.address_line || "—"} ({detailOrder.shipping_address?.city || "—"})</strong>
               </div>
-              <div>
-                <span>Catatan Pesanan</span>
-                <strong>{selectedOrderForDetail.notes || "Tidak ada catatan tambahan"}</strong>
-              </div>
+              <div><span>Catatan</span><strong>{detailOrder.notes || "Tidak ada catatan"}</strong></div>
+            </div>
+
+            <div style={{ borderTop: "1px solid var(--line)", paddingTop: "14px", marginBottom: "14px" }}>
+              <strong style={{ display: "block", marginBottom: "10px", color: "#6f4932" }}>Item Pesanan</strong>
+              {data.orderItems.filter((item) => item.order_id === detailOrder.id).map((item) => (
+                <div key={`${item.order_id}-${item.product_name}`} style={{ display: "flex", justifyContent: "space-between", gap: "12px", padding: "6px 0", fontSize: "13px" }}>
+                  <span>{item.product_name} × {item.quantity}<small style={{ display: "block", color: "var(--muted)" }}>{money(item.unit_price)} / item</small></span>
+                  <strong>{money(item.subtotal)}</strong>
+                </div>
+              ))}
             </div>
 
             <div style={{ borderTop: "1px solid var(--line)", paddingTop: "14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: "14px", color: "var(--muted)" }}>Total Tagihan:</span>
-              <strong style={{ fontFamily: "Georgia, serif", fontSize: "22px", color: "var(--brown)" }}>
-                {money(selectedOrderForDetail.total)}
-              </strong>
+              <span style={{ fontSize: "13px", color: "var(--muted)" }}>Total Tagihan</span>
+              <strong style={{ fontFamily: "Georgia, serif", fontSize: "22px", color: "#7a4f28" }}>{money(detailOrder.total)}</strong>
             </div>
 
-            {selectedOrderForDetail.payment_status === "unpaid" && (
-              <button
-                className="primary-button full-button"
-                style={{ marginTop: "20px" }}
-                onClick={() => {
-                  const orderToPay = selectedOrderForDetail;
-                  setSelectedOrderForDetail(null);
-                  setSelectedOrderForPay(orderToPay);
-                }}
-              >
-                💳 Lanjut ke Payment Gateway ({money(selectedOrderForDetail.total)})
+            {["unpaid", "failed"].includes(detailOrder.payment_status) && (
+              <button className="primary-button full-button" style={{ marginTop: "16px" }}
+                onClick={() => { const o = detailOrder; setDetailOrder(null); setPayOrder(o); }}>
+                💳 Lanjut Bayar ({money(detailOrder.total)})
               </button>
             )}
           </div>
         </div>
       )}
 
-      {/* PAYMENT GATEWAY MODAL */}
-      {selectedOrderForPay && (
+      {/* Payment Modal */}
+      {payOrder && (
         <PaymentGatewayModal
-          orderId={selectedOrderForPay.id}
-          orderNumber={selectedOrderForPay.order_number}
-          totalAmount={selectedOrderForPay.total}
-          onClose={() => setSelectedOrderForPay(null)}
-          onSuccess={handlePaymentSuccess}
+          orderId={payOrder.id}
+          orderNumber={payOrder.order_number}
+          totalAmount={payOrder.total}
+          onClose={() => setPayOrder(null)}
+          onSuccess={() => { setPayOrder(null); refreshOrders(); }}
         />
       )}
 
-      {/* PRIVATE FEEDBACK MODAL */}
-      {selectedOrderForFeedback && (
-        <div className="modal-backdrop" role="presentation" onClick={() => setSelectedOrderForFeedback(null)}>
-          <div className="order-detail-modal" role="dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "480px" }}>
-            <button className="modal-close" onClick={() => setSelectedOrderForFeedback(null)}>×</button>
+      {/* Feedback Modal */}
+      {feedbackOrder && (
+        <div className="modal-backdrop" onClick={() => setFeedbackOrder(null)}>
+          <div className="order-detail-modal" style={{ maxWidth: "480px" }} onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setFeedbackOrder(null)}>×</button>
             <p className="eyebrow">Peningkatan Layanan</p>
-            <h2 style={{ fontFamily: "Georgia, serif", fontSize: "24px", margin: "6px 0 10px" }}>
+            <h2 style={{ fontFamily: "Georgia, serif", fontSize: "22px", margin: "4px 0 8px", color: "#6f4932" }}>
               Masukan Privat Pelanggan
             </h2>
-            <p style={{ fontSize: "12px", color: "var(--muted)", margin: "0 0 18px" }}>
-              Masukan Anda untuk Order <strong>#{selectedOrderForFeedback.order_number}</strong> dikirim secara privat langsung ke manajemen Admin Sharenpan.
+            <p style={{ fontSize: "12px", color: "var(--muted)", marginBottom: "18px" }}>
+              Untuk Order <strong>#{feedbackOrder.order_number}</strong> — dikirim privat ke Admin Sharenpan.
             </p>
-
-            {feedbackSuccess ? (
-              <div className="success-message" style={{ textAlign: "center", padding: "18px" }}>
-                {feedbackSuccess}
-              </div>
+            {feedbackOk ? (
+              <div className="success-message" style={{ textAlign: "center", padding: "18px" }}>{feedbackOk}</div>
             ) : (
-              <form
-                className="stack-form"
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  if (!feedbackMessage.trim()) return;
-                  setFeedbackLoading(true);
-                  try {
-                    const supabase = createClient();
-                    const { data: { user } } = await supabase.auth.getUser();
-                    await supabase.from("customer_feedback").insert({
-                      order_id: selectedOrderForFeedback.id,
-                      user_id: user?.id || null,
-                      customer_name: data.name,
-                      customer_email: data.email,
-                      rating_score: feedbackRating,
-                      message: feedbackMessage.trim(),
-                    });
-                    setFeedbackSuccess("Terima kasih! Masukan Anda telah terkirim secara privat ke Admin Sharenpan.");
-                    setTimeout(() => {
-                      setFeedbackSuccess("");
-                      setSelectedOrderForFeedback(null);
-                      setFeedbackMessage("");
-                    }, 2200);
-                  } catch {
-                    //
-                  } finally {
-                    setFeedbackLoading(false);
-                  }
-                }}
-              >
+              <form className="stack-form" onSubmit={async (e) => {
+                e.preventDefault();
+                if (!feedbackMsg.trim()) return;
+                setFeedbackLoading(true);
+                try {
+                  const supabase = createClient();
+                  const { data: { user } } = await supabase.auth.getUser();
+                  const { error } = await supabase.from("customer_feedback").insert({
+                    order_id: feedbackOrder.id,
+                    user_id: user?.id || null,
+                    customer_name: data.name,
+                    customer_email: data.email,
+                    rating_score: feedbackRating,
+                    message: feedbackMsg.trim(),
+                  });
+                  if (error) throw new Error(error.message);
+                  setFeedbackOk("Terima kasih! Masukan Anda terkirim privat ke Admin Sharenpan.");
+                  setTimeout(() => { setFeedbackOk(""); setFeedbackOrder(null); setFeedbackMsg(""); }, 2400);
+                } catch (error) {
+                  setFeedbackOk(error instanceof Error ? error.message : "Masukan belum berhasil dikirim.");
+                }
+                finally { setFeedbackLoading(false); }
+              }}>
                 <label>
-                  Tingkat Kepuasan (Internal)
+                  Tingkat Kepuasan
                   <div style={{ display: "flex", gap: "8px", margin: "6px 0" }}>
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <button
-                        key={star}
-                        type="button"
-                        onClick={() => setFeedbackRating(star)}
-                        style={{
-                          border: "1px solid #e2d5c5",
-                          borderRadius: "8px",
-                          background: feedbackRating >= star ? "#fffbf2" : "#ffffff",
-                          color: feedbackRating >= star ? "#bd7f35" : "#ccc",
-                          fontSize: "20px",
-                          padding: "6px 12px",
-                          cursor: "pointer",
-                        }}
-                      >
+                    {[1,2,3,4,5].map((star) => (
+                      <button key={star} type="button" onClick={() => setFeedbackRating(star)}
+                        style={{ border: "1px solid #e2d5c5", borderRadius: "8px", padding: "6px 12px", fontSize: "20px", cursor: "pointer",
+                          background: feedbackRating >= star ? "#fffbf2" : "#fff",
+                          color: feedbackRating >= star ? "#bd7f35" : "#ccc" }}>
                         ★
                       </button>
                     ))}
                   </div>
                 </label>
-
                 <label>
-                  Kritik, Saran, Rasa Kue & Pengiriman
-                  <textarea
-                    rows={4}
-                    value={feedbackMessage}
-                    onChange={(e) => setFeedbackMessage(e.target.value)}
-                    required
-                    placeholder="Tuliskan pendapat Anda mengenai rasa kue lapis legit, kerapian kemasan, atau pelayanan kami..."
-                  />
+                  Kritik & Saran
+                  <textarea rows={4} value={feedbackMsg} onChange={(e) => setFeedbackMsg(e.target.value)} required
+                    placeholder="Rasa kue, kemasan, pengiriman, pelayanan..." />
                 </label>
-
                 <button className="primary-button full-button" disabled={feedbackLoading}>
-                  {feedbackLoading ? "Mengirim..." : "Kirim Masukan Privat ke Admin"} <span>→</span>
+                  {feedbackLoading ? "Mengirim…" : "Kirim Masukan Privat"} <span>→</span>
                 </button>
               </form>
             )}

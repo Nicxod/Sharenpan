@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import SharedNavbar from "@/components/shared-navbar";
 
 type TrackingStatus =
   | "pending"
@@ -105,30 +106,8 @@ export default function OrderTracker() {
 
   return (
     <div className="tracker-shell">
-      {/* Topbar */}
-      <div className="topbar">
-        <span>Gratis ongkir untuk pesanan di atas Rp500.000</span>
-        <span className="topbar-separator">•</span>
-        <span>Dibuat fresh berdasarkan pesanan</span>
-      </div>
-
-      {/* Navbar */}
-      <header className="navbar">
-        <Link className="brand" href="/" aria-label="Sharenpan home">
-          <img src="/assets/logo.png" alt="Sharenpan Logo" className="brand-logo-img" />
-          <span>
-            sharenpan
-            <small>lapis legit premium</small>
-          </span>
-        </Link>
-        <nav className="desktop-nav" aria-label="Navigasi utama">
-          <Link href="/">Home</Link>
-          <Link href="/#produk">Produk</Link>
-          <Link href="/#cerita">Tentang kami</Link>
-          <Link href="/#cara-order">Cara order</Link>
-          <Link href="/lacak" className="nav-pesanan-highlight">📦 Lacak Pesanan</Link>
-        </nav>
-      </header>
+      {/* Shared Navbar — konsisten dengan semua halaman */}
+      <SharedNavbar variant="lacak" />
 
       <main className="tracker-main content-width">
         {/* Hero */}
@@ -328,8 +307,8 @@ export default function OrderTracker() {
       <footer className="storefront-footer" style={{ marginTop: "60px" }}>
         <div className="content-width" style={{ textAlign: "center", padding: "28px 0", color: "#a1795a", fontSize: "13px" }}>
           © 2024 Sharenpan — Lapis Legit Premium. Ada pertanyaan?{" "}
-          <a href="https://wa.me/62895321759440" target="_blank" rel="noopener noreferrer" style={{ color: "var(--brown)", fontWeight: 700 }}>
-            Hubungi kami via WhatsApp (+62 895-3217-59440)
+          <a href="https://wa.me/6281218826956" target="_blank" rel="noopener noreferrer" style={{ color: "var(--brown)", fontWeight: 700 }}>
+            Hubungi kami via WhatsApp (+62 812-1882-6956)
           </a>
         </div>
       </footer>

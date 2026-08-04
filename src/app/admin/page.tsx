@@ -14,7 +14,7 @@ export default async function AdminPage() {
 
   const [{ data: products }, { data: orders }, { data: orderItems }, { data: customers }, { data: feedback }] = await Promise.all([
     supabase.from("products").select("id, name, slug, description, price, stock, status, image_url, created_at").order("created_at", { ascending: false }),
-    supabase.from("orders").select("id, order_number, customer_name, customer_email, customer_phone, total, status, payment_status, created_at").order("created_at", { ascending: false }).limit(500),
+    supabase.from("orders").select("id, order_number, customer_name, customer_email, customer_phone, total, status, payment_status, payment_receipt_url, payment_reference, created_at").order("created_at", { ascending: false }).limit(500),
     supabase.from("order_items").select("product_id, product_name, quantity, subtotal").limit(2000),
     supabase.from("profiles").select("id, full_name, phone, role, created_at").order("created_at", { ascending: false }).limit(1000),
     supabase.from("customer_feedback").select("id, order_id, customer_name, customer_email, rating_score, message, created_at").order("created_at", { ascending: false }).limit(500),
